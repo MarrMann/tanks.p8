@@ -228,7 +228,9 @@ end
 // 	x,
 // 	y,
 // 	xvel,
-// 	yvel
+// 	yvel,
+// 	xprev,
+//		yprev
 // }
 shots = {}
 grav = 0.2
@@ -240,6 +242,11 @@ function update_shots()
 		// hit info
 		local inf = checkcol(s)
 		if (inf.didhit) then
+			if (inf.prevx == inf.x and inf.prevy == inf.y) then
+				inf.prevx = s.xprev
+				inf.prevy = s.yprev
+			end
+		
 		 add(exps, {x=flr(inf.x), y=flr(inf.y), r=2, cur_r=2})
 		 
 		 // map/dirt particles
@@ -249,6 +256,8 @@ function update_shots()
 				 y=flr(inf.prevy),
 				 xvel=rnd(5) - 2.5,
 				 yvel=rnd(5) - 2.5,
+				 xprev=flr(inf.prevx),
+				 yprev=flr(inf.prevy),
 				 life=120,
 				 col=5
 		 	})
@@ -262,6 +271,8 @@ function update_shots()
 				y=s.y,
 				xvel=rnd(1.5) - 0.75,
 				yvel=rnd(1.5) - 0.75,
+				xprev=s.x,
+				yprev=s.y,
 				life=rnd(10)+5,
 				col=9
 			})
@@ -299,82 +310,6 @@ function shoot(ox, oy, dx, dy, vel)
 	}
 	add(shots, s)
 end
-
-function checkcol(s)
-	local x0 = s.x
-	local y0 = s.y
-	local x1 = s.x + s.xvel
-	local y1 = s.y + s.yvel
-	
-	if abs(y1 - y0) < abs(x1 - x0) then
-		return checkcollow(x0, y0, x1, y1)
-	end
-	return checkcolhigh(x0, y0, x1, y1)
-end
-
-function checkcollow(x0, y0, x1, y1)
- dx = x1 - x0
- dy = y1 - y0
- yi = sgn(dy)
- xi = sgn(dx)
- d = (2 * dy * yi) - dx*xi
- y = y0
-
- for x=x0,x1,xi do
-  if (mapget(flr(x),flr(y)) != 0) then
-   local d = sqrt(dx*dx+dy*dy)
-  	dx /= d
-  	dy /= d
-  	return {
-	  	didhit=true,
-	  	x=x,
-	  	y=y,
-	  	prevx=x-dx,
-	  	prevy=y-dy
-	  }
-  end
-  
- 	if d > 0 then
- 		y += yi
- 		d += 2 * (dy*yi - dx*xi)
-		else
-			d += 2*dy*yi
-		end
-	end
-	return {didhit=false}
-end
-
-function checkcolhigh(x0, y0, x1, y1)
- dx = x1 - x0
- dy = y1 - y0
- xi = sgn(dx)
- yi = sgn(dy)
- d = 2 * dx - dy*yi
- x = x0
- 
- for y=y0,y1,sgn(dy) do
-  if (mapget(flr(x),flr(y)) != 0) then
-  	local d = sqrt(dx*dx+dy*dy)
-  	dx /= d
-  	dy /= d
-  	return {
-	  	didhit=true,
-	  	x=x,
-	  	y=y,
-	  	prevx=x-dx,
-	  	prevy=y-dy
-	  }
-	 end
-	 
- 	if d > 0 then
- 		x += xi
- 		d += 2 * (dx*xi - dy*yi)
-		else
-			d += 2*dx*xi
-		end
-	end
-	return {didhit=false}
-end
 -->8
 //exp = {
 //	x=0,
@@ -411,7 +346,9 @@ end
 //	y,
 //	xvel,
 //	yvel,
-//	life
+// xprev,
+// yprev,
+//	life,
 //	col
 //}
 
@@ -419,17 +356,6 @@ parts = {}
 map_parts = {}
 
 function update_particles()
-	if t%10 == 0 then
-		add(map_parts, {
-			x=64,
-		 y=1,
-		 xvel=0.1,
-		 yvel=0,
-		 life=120,
-		 col=4
-		})
-	end
-	
 	for i=#parts,1,-1 do
 		local p=parts[i]
 		p.x += p.xvel
@@ -467,8 +393,121 @@ function draw_particles()
 		local mp=map_parts[i]
 		pset(mp.x, mp.y, mp.col)
 		line(mp.x,mp.y,mp.x+mp.xvel,mp.y+mp.yvel,mp.col)
+		checkcol(mp)
 		if (mp.life <= 0) del(map_parts, mp)
 	end
+end
+-->8
+// collisions
+function checkcol(s)
+	local x0 = s.x
+	local y0 = s.y
+	local x1 = s.x + s.xvel
+	local y1 = s.y + s.yvel
+	
+	//pset(flr(x0), flr(y0), 8)
+	//pset(flr(x1), flr(y1), 8)
+	
+	if abs(y1 - y0) < abs(x1 - x0) then
+		return checkcollow(x0, y0, x1, y1)
+	end
+	return checkcolhigh(x0, y0, x1, y1)
+end
+
+function checkcollow(x0, y0, x1, y1)
+ dx = x1 - x0
+ dy = y1 - y0
+ yi = sgn(dy)
+ xi = sgn(dx)
+ d = (2 * dy * yi) - dx*xi
+ y = y0
+ prevx = x0
+ prevy = y
+
+ for x=x0,x1,xi do
+  if (mapget(flr(x),flr(y)) != 0) then
+   local d = sqrt(dx*dx+dy*dy)
+  	dx /= d
+  	dy /= d
+  	return {
+	  	didhit=true,
+	  	x=x,
+	  	y=y,
+	  	prevx=prevx,
+	  	prevy=prevy
+	  }
+  end
+  
+ 	if d > 0 then
+ 		y += yi
+ 		d += 2 * (dy*yi - dx*xi)
+		else
+			d += 2*dy*yi
+		end
+		
+		prevx = x
+		prevy = y
+	end
+	//check endpoint
+	if (mapget(flr(x1),flr(y1)) != 0) then
+		return {
+	 	didhit=true,
+	 	x=x1,
+	 	y=y1,
+	 	prevx=prevx,
+	 	prevy=prevy
+	 }
+	end
+ 
+	return {didhit=false}
+end
+
+function checkcolhigh(x0, y0, x1, y1)
+ dx = x1 - x0
+ dy = y1 - y0
+ xi = sgn(dx)
+ yi = sgn(dy)
+ d = 2 * dx - dy*yi
+ x = x0
+ prevx = x
+ prevy = y0
+ 
+ for y=y0,y1,sgn(dy) do
+  if (mapget(flr(x),flr(y)) != 0) then
+  	local d = sqrt(dx*dx+dy*dy)
+  	dx /= d
+  	dy /= d
+  	return {
+	  	didhit=true,
+	  	x=x,
+	  	y=y,
+	  	prevx=prevx,
+	  	prevy=prevy
+	  }
+	 end
+	 
+ 	if d > 0 then
+ 		x += xi
+ 		d += 2 * (dx*xi - dy*yi)
+		else
+			d += 2*dx*xi
+		end
+		
+		prevx = x
+		prevy = y
+	end
+	//check endpoint
+	if (mapget(flr(x1),flr(y1)) != 0) then
+		return {
+	 	didhit=true,
+	 	x=x1,
+	 	y=y1,
+	 	prevx=prevx,
+	 	prevy=prevy
+	 }
+	end
+
+	return {didhit=false}
 end
 __gfx__
 00000000000000004444444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
