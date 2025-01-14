@@ -246,20 +246,26 @@ function update_shots()
 				inf.prevx = s.xprev
 				inf.prevy = s.yprev
 			end
-		
-		 add(exps, {x=flr(inf.x), y=flr(inf.y), r=2, cur_r=2})
+			
+			ex_x=flr(inf.x)
+			ex_y=flr(inf.y)
+			hit_col=mapget(ex_x,ex_y)
+		 add(exps, {x=ex_x, y=ex_y, r=2, cur_r=2})
 		 
 		 // map/dirt particles
-		 for j=1,20 do
+		 n_x,n_y=get_q_normal(ex_x, ex_y)
+		 p_x=ex_x+n_x*2
+		 p_y=ex_y+n_y*2
+		 for k=1,5 do
 		 	add(map_parts, {
-		 		x=flr(inf.prevx),
-				 y=flr(inf.prevy),
-				 xvel=rnd(5) - 2.5,
-				 yvel=rnd(5) - 2.5,
+		 		x=flr(p_x),
+				 y=flr(p_y),
+				 xvel=rnd(5.0) - 2.5,
+				 yvel=rnd(5.0) - 2.5,
 				 xprev=flr(inf.prevx),
 				 yprev=flr(inf.prevy),
 				 life=120,
-				 col=5
+				 col=hit_col
 		 	})
 		 end
 		end
@@ -274,7 +280,7 @@ function update_shots()
 				xprev=s.x,
 				yprev=s.y,
 				life=rnd(10)+5,
-				col=9
+				col=8+j
 			})
 		end
 		
@@ -368,7 +374,13 @@ function update_particles()
 		
 		local inf = checkcol(mp)
 		if inf.didhit then
-			mapset(flr(inf.prevx), flr(inf.prevy), mp.col)
+			hit_x=flr(inf.x)
+			hit_y=flr(inf.y)
+			n_x,n_y=get_q_normal(hit_x,hit_y)
+			mp_x=hit_x+n_x
+			mp_y=hit_y+n_y
+			mapset(mp_x, mp_y, mp.col)
+			add(fallings, {x=mp_x, y=mp_y})
 		end
 		
 		mp.x += mp.xvel
@@ -404,9 +416,6 @@ function checkcol(s)
 	local y0 = s.y
 	local x1 = s.x + s.xvel
 	local y1 = s.y + s.yvel
-	
-	//pset(flr(x0), flr(y0), 8)
-	//pset(flr(x1), flr(y1), 8)
 	
 	if abs(y1 - y0) < abs(x1 - x0) then
 		return checkcollow(x0, y0, x1, y1)
@@ -508,6 +517,44 @@ function checkcolhigh(x0, y0, x1, y1)
 	end
 
 	return {didhit=false}
+end
+
+-- get the terrain normal at (x, y)
+function get_normal(x, y)
+ local dx = 0
+ local dy = 0
+
+ for offset_y = -1, 1 do
+  for offset_x = -1, 1 do
+   if offset_x != 0 or offset_y != 0 then
+     	
+    local value = mapget(flr(x + offset_x), flr(y + offset_y))
+    dx += offset_x * value
+    dy += offset_y * value
+   end
+  end
+ end
+
+ -- flip gradient to get normal
+ local normal_x = -dx
+ local normal_y = -dy
+
+ -- normalize the vector
+ local length = sqrt(normal_x^2 + normal_y^2)
+ if length > 0 then
+  normal_x /= length
+  normal_y /= length
+ end
+
+ return normal_x, normal_y
+end
+
+-- get quantized normal at (x, y)
+function get_q_normal(x, y)
+  local normal_x, normal_y = get_normal(x, y)
+  local quantized_x = flr(normal_x + 0.5) -- round to nearest integer
+  local quantized_y = flr(normal_y + 0.5) -- round to nearest integer
+  return quantized_x, quantized_y
 end
 __gfx__
 00000000000000004444444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
