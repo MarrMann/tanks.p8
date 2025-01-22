@@ -32,6 +32,12 @@ function _draw()
 	draw_particles()
 	draw_explosions()
 end
+
+function lerp(a,b,t)
+ local result=a+t*(b-a)
+ return result
+end
+	
 -->8
 // player stuff
 
@@ -40,8 +46,12 @@ p = {
 	y = 64,
 	move = false,
 	spr = 0,
-	t_angle = 0
+	t_angle = 0,
+	pow = 0.5
 }
+
+x_hold_frames = 0
+x_tap = 7
 
 function handle_input()
 	local prev_x = p.x
@@ -52,15 +62,26 @@ function handle_input()
 	if btn(➡️) and mapget(p.x+1, p.y-3) == 0 then
 	 p.x += 0.5
 	end
-	if btn(⬆️) then p.t_angle += 0.01 end
-	if btn(⬇️) then p.t_angle -= 0.01 end
-	if btnp(❎) then
-		local dx = sin(p.t_angle)
-		local dy = cos(p.t_angle)
-		local ox = p.x+dx*4
-		local oy = p.y-3+dy*4
-		shoot(ox,oy,dx,dy,5)
-		//explode_brem(p.x, p.y+40, 16)
+	if btn(❎) then //holding ❎
+		x_hold_frames += 1
+	elseif x_hold_frames > 0 then
+		if x_hold_frames <= x_tap then
+			local dx = sin(p.t_angle)
+			local dy = cos(p.t_angle)
+			local ox = p.x+dx*4
+			local oy = p.y-3+dy*4
+			shoot(ox,oy,dx,dy,p.pow*6+1)
+		end
+		x_hold_frames = 0
+	end
+	
+	if x_hold_frames > x_tap then
+		if btn(⬆️) then p.pow += 0.02 end
+		if btn(⬇️) then p.pow -= 0.02 end
+		p.pow=min(1.0,max(0.0,p.pow))
+	else
+		if btn(⬆️) then p.t_angle += 0.01 end
+		if btn(⬇️) then p.t_angle -= 0.01 end
 	end
 	
 	if prev_x != p.x then
@@ -95,10 +116,32 @@ function draw_player()
 	if p.move then p.spr = (t%4)/2 end
 	p.x -= 4
 	p.y -= 6
-	spr(p.spr, p.x, p.y) // for debugging
+	spr(p.spr, p.x, p.y)
 	p.x += 4
 	p.y += 6
-	line(p.x, p.y-3, p.x+tur_x, p.y-3+tur_y, 7)
+	local t_end_x=p.x+tur_x
+	local t_end_y=p.y-3+tur_y
+	line(p.x, p.y-3, t_end_x, t_end_y, 7)
+	
+ // crosshair
+ local cross_x = p.x+tur_x*8
+ local cross_y = p.y-3+tur_y*8
+ line(cross_x-2,cross_y,cross_x-4,cross_y,7)
+ line(cross_x+2,cross_y,cross_x+4,cross_y,7)
+ line(cross_x,cross_y-2,cross_x,cross_y-4,7)
+ line(cross_x,cross_y+2,cross_x,cross_y+4,7)
+ 
+ // power
+ if btn(❎) and x_hold_frames > x_tap then
+	 local pow_col = 8
+	 if p.pow > 0.33 then pow_col=9 end
+	 if p.pow > 0.66 then pow_col=11 end
+	 local pow_ox = p.x+tur_x*2
+	 local pow_oy = p.y-3+tur_y*2
+	 local dest_x = lerp(pow_ox,cross_x,p.pow)
+	 local dest_y = lerp(pow_oy,cross_y,p.pow)
+	 line(pow_ox,pow_oy,dest_x,dest_y,pow_col)
+	end
 end
 -->8
 // world stuff
