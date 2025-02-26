@@ -8,6 +8,7 @@ t = 0
 
 function _init()
 	init_world()
+	load_room(0,0)
 end
 
 function _update()
@@ -31,6 +32,7 @@ function _draw()
 	draw_shots()
 	draw_particles()
 	draw_explosions()
+	draw_types()
 end
 
 function lerp(a,b,t)
@@ -324,6 +326,17 @@ function update_shots()
 			if (inf.prevx == inf.x and inf.prevy == inf.y) then
 				inf.prevx = s.xprev
 				inf.prevy = s.yprev
+			end
+			local target=did_hit_target(inf.x,inf.y)
+			if target!=nil then
+				add(hit_texts,{
+					x=inf.x,
+					y=inf.y,
+					col=10,
+					life=30,
+					text="+1"
+				})
+				del(targets,target)
 			end
 			
 			ex_x=flr(inf.x)
@@ -634,6 +647,57 @@ function get_q_normal(x, y)
   local quantized_x = flr(normal_x + 0.5) -- round to nearest integer
   local quantized_y = flr(normal_y + 0.5) -- round to nearest integer
   return quantized_x, quantized_y
+end
+-->8
+// map types and room loading
+room = {x=0,y=0}
+targets = {}
+hit_texts = {}
+
+target_t = 62
+
+function load_room(x,y)
+ // clear
+	for t in all(targets) do
+		del(targets, t)
+	end
+	
+	room.x = x
+	room.y = y
+	
+	for tx=0,15 do
+		for ty=0,15 do
+		 local tile = mget(room.x*16+tx,room.y*16+ty)
+		 if tile==target_t then
+		 	add(targets, {
+		 		x=tx*8,
+		 		y=ty*8
+		 	})
+		 end
+		end
+	end	
+end
+
+// hit_text:x,y,col,life,text
+function draw_types()
+	for ht in all(hit_texts) do
+		print(ht.text,ht.x,ht.y,ht.col)
+		ht.life -= 1
+		ht.y -= 0.5
+		ht.x += cos(ht.y*0.1)*0.5
+		if ht.life < 0 then
+			del(hit_texts, ht)
+		end
+	end
+end
+
+function did_hit_target(x,y)
+	for t in all(targets) do
+		if x>=t.x and x<=t.x+7 and y>=t.y	and y<=t.y+7 then
+			return t
+		end
+	end
+	return nil
 end
 __gfx__
 00000000000000003333333344444444444440004000000000000000330000004000000000000004000000000000000000000000000000000000000000000000
