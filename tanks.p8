@@ -67,8 +67,6 @@ function handle_input()
 		local target_x = p.x-1
 		local target_y = get_ground(flr(target_x),fl_y)
 		local angle = atan2(-1,(fl_y-target_y))
-		
-		//printh('angle: '..angle,'dbg.txt')
 		if (angle > 0.25 and angle < 0.7) then
 			p.x += cos(angle) * 0.5
 			p.y -= sin(angle) * 0.5
@@ -143,15 +141,18 @@ function get_ground(x, y)
 	return y
 end
 
+// keep for testing when needed
 function draw_dbg()
 
 end
 
 function update_player()
 	// gravity
-	if not p.is_grounded then
-		if mapget(p.x, p.y+1) == 0 then
+	if not p.move then
+		local grnd = get_ground(flr(p.x),flr(p.y))
+		if grnd > p.y then
 			p.y += 1
+			p.is_grounded = false
 		else
 			p.is_grounded = true
 		end
@@ -679,13 +680,13 @@ function load_room(x,y)
 
 	// room wrapping
 	if x < 0 then
-		x = 7
-	elseif x > 7 then
+		x = 15
+	elseif x > 15 then
 		x = 0
 	end
 	if y < 0 then
-		y = 15
-	elseif y > 15 then
+		y = 7
+	elseif y > 7 then
 		y = 0
 	end
 	
