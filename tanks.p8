@@ -5,6 +5,7 @@ __lua__
 
 wait_t = 0
 t = 0
+entity_id = 0
 
 function _init()
 	load_room(0,0)
@@ -35,6 +36,11 @@ function _draw()
 	draw_types()
 end
 
+function get_entity_id()
+	entity_id += 1
+	return entity_id
+end
+
 function lerp(a,b,t)
  local result=a+t*(b-a)
  return result
@@ -43,7 +49,8 @@ end
 -->8
 // player stuff
 
-p = {
+p={
+	id = get_entity_id(),
 	x = 64,
 	y = 64,
 	move = false,
@@ -708,11 +715,13 @@ function load_room(x,y)
 		 local tile = mget(room.x*16+tx,room.y*16+ty)
 		 if tile==target_t then
 		 	add(targets, {
+					id=get_entity_id(),
 		 		x=tx*8,
 		 		y=ty*8
 		 	})
 			elseif tile==enemy_t then
 		 	add(dumb_enemies, {
+					id=get_entity_id(),
 		 		x=tx*8,
 		 		y=ty*8,
 		 		shoot_dir=rnd(1),
@@ -769,10 +778,6 @@ function draw_enemies()
 end
 -->8
 // todo
-
-// give player&enemies unique ids
-//should probably just be in
-//incrementing number
 
 // implement hitting player&enemies
 //should be done by checking
