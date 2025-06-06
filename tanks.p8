@@ -20,6 +20,7 @@ function _update()
 	handle_input()
 	update_world()
 	update_player()
+	update_enemies()
 	update_shots()
 	update_particles()
 	update_explosions()
@@ -216,7 +217,7 @@ function init_world()
 	memset(0x8000, 0x00, 0x2000)
 	map(room.x*16, room.y*16)
 	for de in all(dumb_enemies) do
-		remove_tile(de.x,de.y)
+		remove_tile(de.x-4,de.y-6)
 	end
 	memcpy(0x8000, 0x6000, 0x2000)
 end
@@ -722,8 +723,8 @@ function load_room(x,y)
 			elseif tile==enemy_t then
 		 	add(dumb_enemies, {
 					id=get_entity_id(),
-		 		x=tx*8,
-		 		y=ty*8,
+		 		x=tx*8+4, // offset sprite
+		 		y=ty*8+6, // offset sprite
 		 		shoot_dir=rnd(1),
 		 		shoot_power=rnd(50)+50
 		 	})
@@ -765,15 +766,18 @@ function did_hit_target(x,y)
 end
 -->8
 // enemies
-function udpate_enemies()
+function update_enemies()
 	for de in all(dumb_enemies) do
-		
 	end
 end
 
 function draw_enemies()
 	for de in all(dumb_enemies) do
+		de.x -= 4
+		de.y -= 6
 		spr(61,de.x,de.y)
+		de.x += 4
+		de.y += 6
 	end
 end
 -->8
