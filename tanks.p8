@@ -46,6 +46,16 @@ function lerp(a,b,t)
  local result=a+t*(b-a)
  return result
 end
+
+//https://www.lexaloffle.com/bbs/?tid=36059
+function approx_dist(dx,dy)
+ local maskx,masky=dx>>31,dy>>31
+ local a0,b0=(dx+maskx)^^maskx,(dy+masky)^^masky
+ if a0>b0 then
+  return a0*0.9609+b0*0.3984
+ end
+ return b0*0.9609+a0*0.3984
+end
 	
 -->8
 // player stuff
@@ -58,7 +68,8 @@ p={
 	spr = 0,
 	t_angle = 0,
 	pow = 0.5,
-	is_grounded = false
+	is_grounded = false,
+	health=100
 }
 
 x_hold_frames = 0
@@ -171,20 +182,23 @@ end
 function draw_player()
 	draw_dbg()
 	
+	print("health="..p.health,7)
+	
 	// player sprite
-	local tur_x = sin(p.t_angle)*4
-	local tur_y = cos(p.t_angle)*4
 	if p.move then p.spr = (t%4)/2 end
-	//pset(p.x,p.y,7)
 	p.x -= 4
 	p.y -= 6
 	spr(p.spr, p.x, p.y)
 	p.x += 4
 	p.y += 6
+
+	// turret
+	local tur_x = sin(p.t_angle)*4
+	local tur_y = cos(p.t_angle)*4
 	local t_end_x=p.x+tur_x
 	local t_end_y=p.y-3+tur_y
 	line(p.x, p.y-3, t_end_x, t_end_y, 7)
-	
+
  // crosshair
  local cross_x = p.x+tur_x*8
  local cross_y = p.y-3+tur_y*8
@@ -192,7 +206,7 @@ function draw_player()
  line(cross_x+2,cross_y,cross_x+4,cross_y,7)
  line(cross_x,cross_y-2,cross_x,cross_y-4,7)
  line(cross_x,cross_y+2,cross_x,cross_y+4,7)
- 
+
  // power
  if btn(❎) and x_hold_frames > x_tap then
 	 local pow_col = 8
@@ -369,7 +383,13 @@ function update_shots()
 			ex_x=flr(inf.x)
 			ex_y=flr(inf.y)
 			hit_col=mapget(ex_x,ex_y)
-		 add(exps, {x=ex_x, y=ex_y, r=2, cur_r=2})
+		 add(exps, {
+		 	x=ex_x,
+		 	y=ex_y,
+		 	r=4,
+		 	cur_r=1,
+		 	hit_ids={},
+		 	dmg=25})
 		 
 		 // map/dirt particles
 		 n_x,n_y=get_q_normal(ex_x, ex_y)
@@ -441,7 +461,9 @@ end
 //	x=0,
 //	y=0,
 //	r=5,
-//	cur_r=0
+//	cur_r=0,
+// hit_ids=[],
+// dmg=25
 //}
 
 exps={}
@@ -451,7 +473,40 @@ function update_explosions()
 		local exp = exps[i]
 		eq = exp.cur_r == exp.r
 		explode_brem(exp.x, exp.y, exp.cur_r, eq)
+		handle_exp_hits(exp)
 	end
+end
+
+function handle_exp_hits(exp)
+	// player
+	if not tbl_contains(exp.hit_ids,p.id) then
+		if handle_exp_hit(exp,p) then
+			p.health-=exp.dmg
+		end
+	end
+	
+	// enemies
+	for e in all(dumb_enemies) do
+		if not tbl_contains(exp.hit_ids,e.id) then
+			if handle_exp_hit(exp,e) then
+				e.health-=exp.dmg
+				if e.health <= 0 then
+					del(dumb_enemies,e)
+				end
+			end
+		end
+	end
+	
+	// targets??
+end
+
+function handle_exp_hit(exp,target)
+	local dist = approx_dist(abs(target.x-exp.x),abs(target.y-exp.y))
+	if dist <= exp.cur_r then
+		add(exp.hit_ids, target.id)
+		return true
+	end
+	return false
 end
 
 function draw_explosions()
@@ -463,6 +518,15 @@ function draw_explosions()
 			del(exps, exp)
 		end
 	end	
+end
+
+function tbl_contains(tbl,item)
+	for i=1,#tbl do
+		if tbl[i]==item then
+			return true
+		end
+	end
+	return false
 end
 -->8
 // particles
@@ -725,8 +789,9 @@ function load_room(x,y)
 					id=get_entity_id(),
 		 		x=tx*8+4, // offset sprite
 		 		y=ty*8+6, // offset sprite
-		 		shoot_dir=rnd(1),
-		 		shoot_power=rnd(50)+50
+		 		t_angle=rnd(1),
+		 		pow=rnd(0.5)+0.25,
+					health=25
 		 	})
 			end
 		end
@@ -768,6 +833,10 @@ end
 // enemies
 function update_enemies()
 	for de in all(dumb_enemies) do
+		de.t_angle += 0.025
+		if mapget(de.x,de.y+1)==0 then
+			de.y+=1
+		end
 	end
 end
 
@@ -778,10 +847,24 @@ function draw_enemies()
 		spr(61,de.x,de.y)
 		de.x += 4
 		de.y += 6
+
+		local tur_x = sin(de.t_angle)*4
+		local tur_y = cos(de.t_angle)*4
+		local t_end_x=de.x+tur_x
+		local t_end_y=de.y-3+tur_y
+		line(de.x, de.y-3, t_end_x, t_end_y, 7)
 	end
 end
 -->8
 // todo
+
+//hitting players/enemies/targets
+///+distance function
+///+enemy drawing (missing turret)
+///+health
+///+explosion hit detection
+///+save ids in explosion
+///*knockback
 
 // implement hitting player&enemies
 //should be done by checking
