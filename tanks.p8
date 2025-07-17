@@ -64,12 +64,15 @@ p={
 	id = get_entity_id(),
 	x = 64,
 	y = 64,
+	xvel=0, // used when knocked
+	yvel=0,
 	move = false,
 	spr = 0,
 	t_angle = 0,
 	pow = 0.5,
 	is_grounded = false,
-	health=100
+	health=100,
+	is_knocked=false
 }
 
 x_hold_frames = 0
@@ -386,10 +389,11 @@ function update_shots()
 		 add(exps, {
 		 	x=ex_x,
 		 	y=ex_y,
-		 	r=4,
+		 	r=12,
 		 	cur_r=1,
 		 	hit_ids={},
-		 	dmg=25})
+		 	dmg=25,
+				force=4})
 		 
 		 // map/dirt particles
 		 n_x,n_y=get_q_normal(ex_x, ex_y)
@@ -482,16 +486,40 @@ function handle_exp_hits(exp)
 	if not tbl_contains(exp.hit_ids,p.id) then
 		if handle_exp_hit(exp,p) then
 			p.health-=exp.dmg
+			p.is_knocked=true
+			local f_x, f_y=get_knockback(p,exp)
+			p.xvel=f_x
+			p.yvel=f_y
+			add(knocked_entities,p)
+			add(hit_texts,{
+				x=p.x-2,
+				y=p.y,
+				col=2,
+				life=30,
+				text=exp.dmg
+			})
 		end
 	end
-	
+
 	// enemies
 	for e in all(dumb_enemies) do
 		if not tbl_contains(exp.hit_ids,e.id) then
 			if handle_exp_hit(exp,e) then
 				e.health-=exp.dmg
+				add(hit_texts,{
+					x=e.x-2,
+					y=e.y,
+					col=8,
+					life=30,
+					text=exp.dmg
+				})
 				if e.health <= 0 then
 					del(dumb_enemies,e)
+				else
+					e.is_knocked=true
+					e.xvel=0
+					e.yvel=-4
+					add(knocked_entities,e)
 				end
 			end
 		end
@@ -576,6 +604,40 @@ function update_particles()
 			del(map_parts, mp)
 		end
 	end
+
+	for i=#knocked_entities,1,-1 do
+		local ent=knocked_entities[i]
+		local inf=checkcol(ent)
+
+		if inf.didhit then
+			local hit_x=flr(inf.x)
+			local hit_y=flr(inf.y)
+			local n_x, n_y=get_q_normal(hit_x,hit_y)
+			ent_x=hit_x+n_x
+			ent_y=hit_y+n_y
+			ent.x=ent_x
+			ent.y=ent_y
+			ent.is_knocked=false
+			del(knocked_entities, ent)
+		else
+			ent.x += ent.xvel
+			ent.y += ent.yvel
+			ent.yvel += grav
+		end
+	end
+end
+
+function get_knockback(ent, exp)
+	local raw_dir_x=ent.x-exp.x
+	local raw_dir_y=ent.y-(exp.y+2) // better sim of center of mass
+	local length=sqrt(raw_dir_x^2+raw_dir_y^2)
+	local norm_x=raw_dir_x/length
+	local norm_y=raw_dir_y/length
+	local scaling=1-(exp.cur_r/exp.r)
+	local x=norm_x*scaling*exp.force
+	local y=norm_y*scaling*exp.force
+	printh('rawx='..raw_dir_x..' rawy='..raw_dir_y..'x='..x..' y='..y..' s='..scaling, '@clip')
+	return x, -abs(y)
 end
 
 function draw_particles()
@@ -746,6 +808,7 @@ room = {x=0,y=0}
 targets = {}
 dumb_enemies = {}
 hit_texts = {}
+knocked_entities={}
 
 empty_t = 63
 target_t = 62
@@ -789,9 +852,12 @@ function load_room(x,y)
 					id=get_entity_id(),
 		 		x=tx*8+4, // offset sprite
 		 		y=ty*8+6, // offset sprite
+					xvel=0,
+					yvel=0,
 		 		t_angle=rnd(1),
 		 		pow=rnd(0.5)+0.25,
-					health=25
+					health=25,
+					is_knocked=false
 		 	})
 			end
 		end
@@ -864,22 +930,22 @@ end
 ///+health
 ///+explosion hit detection
 ///+save ids in explosion
+///+visuals when taking damage (text)
 ///*knockback
-
-// implement hitting player&enemies
-//should be done by checking
-//if player/enemy is in the
-//explosion radius each step.
-//only check a single pixel for
-//both to save resources.
-//save the id (todo) of each
-//hit target in the explosion
-//so it doesn't hit them again
-//as it expands.
+////+add knockback stat to explosions
+////+knockback linear scaling from center
+////+knockback direction
+////*disable movement during knockback?
+////*add and test knockback to enemies
+////*remove debug
 
 // implement dumb enemies
-//they shoot randomly and don't
+//they shoot semi-randomly and don't
 //move
+///*lerp to target aim
+///*ensure we're pointing towards the player
+///*randomize power
+///*shoot!
 
 // update target hitting
 //it should count as a hit as
