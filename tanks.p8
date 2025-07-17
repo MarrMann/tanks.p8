@@ -84,26 +84,30 @@ function handle_input()
 	local fl_x = flr(p.x)
 	local fl_y = flr(p.y)
 	p.move = false
-	
+
 	// movement
-	if btn(⬅️) then
-		local target_x = p.x-1
-		local target_y = get_ground(flr(target_x),fl_y)
-		local angle = atan2(-1,(fl_y-target_y))
-		if (angle > 0.25 and angle < 0.7) then
-			p.x += cos(angle) * 0.5
-			p.y -= sin(angle) * 0.5
+	if not p.is_knocked then
+		if btn(⬅️) then
+			local target_x = p.x-1
+			local target_y = get_ground(flr(target_x),fl_y)
+			local angle = atan2(-1,(fl_y-target_y))
+			if (angle > 0.25 and angle < 0.7) then
+				p.x += cos(angle) * 0.5
+				p.y -= sin(angle) * 0.5
+			end
+		end
+		if btn(➡️) then
+			local target_x = p.x+1
+			local target_y = get_ground(flr(target_x),fl_y)
+			local angle = atan2(1,(fl_y-target_y))
+			if (angle < 0.25 or angle > 0.8) then
+				p.x += cos(angle) * 0.5
+				p.y -= sin(angle) * 0.5
+			end
 		end
 	end
-	if btn(➡️) then
-		local target_x = p.x+1
-		local target_y = get_ground(flr(target_x),fl_y)
-		local angle = atan2(1,(fl_y-target_y))
-		if (angle < 0.25 or angle > 0.8) then
-		 p.x += cos(angle) * 0.5
-		 p.y -= sin(angle) * 0.5
-	 end
-	end
+
+	// shooting
 	if btn(❎) then //holding ❎
 		x_hold_frames += 1
 	elseif x_hold_frames > 0 then
@@ -171,7 +175,7 @@ end
 
 function update_player()
 	// gravity
-	if not p.move then
+	if not p.move and not p.is_knocked then
 		local grnd = get_ground(flr(p.x),flr(p.y))
 		if grnd > p.y then
 			p.y += 1
@@ -392,7 +396,7 @@ function update_shots()
 		 	r=12,
 		 	cur_r=1,
 		 	hit_ids={},
-		 	dmg=25,
+		 	dmg=5,
 				force=4})
 		 
 		 // map/dirt particles
@@ -517,8 +521,9 @@ function handle_exp_hits(exp)
 					del(dumb_enemies,e)
 				else
 					e.is_knocked=true
-					e.xvel=0
-					e.yvel=-4
+					local f_x, f_y=get_knockback(e,exp)
+					e.xvel=f_x
+					e.yvel=f_y
 					add(knocked_entities,e)
 				end
 			end
@@ -636,7 +641,6 @@ function get_knockback(ent, exp)
 	local scaling=1-(exp.cur_r/exp.r)
 	local x=norm_x*scaling*exp.force
 	local y=norm_y*scaling*exp.force
-	printh('rawx='..raw_dir_x..' rawy='..raw_dir_y..'x='..x..' y='..y..' s='..scaling, '@clip')
 	return x, -abs(y)
 end
 
@@ -923,21 +927,6 @@ function draw_enemies()
 end
 -->8
 // todo
-
-//hitting players/enemies/targets
-///+distance function
-///+enemy drawing (missing turret)
-///+health
-///+explosion hit detection
-///+save ids in explosion
-///+visuals when taking damage (text)
-///*knockback
-////+add knockback stat to explosions
-////+knockback linear scaling from center
-////+knockback direction
-////*disable movement during knockback?
-////*add and test knockback to enemies
-////*remove debug
 
 // implement dumb enemies
 //they shoot semi-randomly and don't
