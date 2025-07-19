@@ -35,6 +35,7 @@ function _draw()
 	draw_particles()
 	draw_explosions()
 	draw_types()
+	draw_ui()
 end
 
 function get_entity_id()
@@ -388,7 +389,7 @@ function update_shots()
 		 add(exps, {
 		 	x=ex_x,
 		 	y=ex_y,
-		 	r=12,
+		 	r=2,
 		 	cur_r=1,
 		 	hit_ids={},
 		 	dmg=5,
@@ -437,7 +438,6 @@ function update_shots()
 end
 
 function draw_shots()
-	pset(0,0,1)
 	for i=#shots,1,-1 do
 		s = shots[i]
 		local dx = (s.x+s.xvel) - s.x
@@ -865,8 +865,8 @@ function load_room(x,y)
 		 		pow=0.5,
 					health=25,
 					is_knocked=false,
-					cd=150,
-					cur_cd=150
+					cd=15,
+					cur_cd=15
 		 	})
 			end
 		end
@@ -949,10 +949,28 @@ end
 -->8
 // todo
 
+//*player shot timer
+
 // update target hitting
 //it should count as a hit as
 //soon as the target itself gets
 //deformed
+-->8
+//ui
+function draw_ui()
+	pset(5,127,10)
+ for e in all(dumb_enemies) do
+		draw_cd(e.cur_cd,e.cd,127)
+ end
+end
+
+function draw_cd(cur_cd,cd,y)
+	local cddraw=cur_cd+5
+	while cddraw < 128 do
+		pset(cddraw,y,8)
+		cddraw+=cd
+	end
+end
 __gfx__
 00000000000000003333333344444444444440004000000000000000330000004000000000000004000000000000000000000000000000000000000000000000
 00000000000000003344343444444444444440004000000000000000343300004400000000000044000000000000000000000000000000000000000000000000
