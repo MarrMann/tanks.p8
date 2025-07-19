@@ -950,6 +950,10 @@ end
 // todo
 
 //*player shot timer
+///*indicators showing timings
+///*indicator showing cd
+///*cd for player shots
+///*variable power/spread based on timing
 
 // update target hitting
 //it should count as a hit as
