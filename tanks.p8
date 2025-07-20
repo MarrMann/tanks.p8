@@ -959,16 +959,30 @@ end
 -->8
 // todo
 
-//*player shot timer
-///*indicators showing timings
-///*indicator showing cd
-///*cd for player shots
-///*variable power/spread based on timing
+//timing indicators
+///text indicators (perfect/good/ok/miss)
+///sound indicator??
 
-// update target hitting
+//map boundaries
+///block player from moving outside boundaries when enemies/targets are present
+///add bounce if knocked and hitting wall
+///remove boundary once all targets are gone
+///should boundary only be on sides?
+///regen health when clearing a level?
+
+//game over state
+///lose when running out of health
+///block input
+///game over ui
+///how to reset?
+
+//update target hitting
 //it should count as a hit as
 //soon as the target itself gets
 //deformed
+
+//thoughts
+///should timing reset when you press too early?
 -->8
 //ui
 function draw_ui()
