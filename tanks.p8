@@ -73,7 +73,9 @@ p={
 	pow = 0.5,
 	is_grounded = false,
 	health=100,
-	is_knocked=false
+	is_knocked=false,
+	cd=120,
+	cur_cd=120
 }
 
 x_hold_frames = 0
@@ -113,7 +115,11 @@ function handle_input()
 		x_hold_frames += 1
 	elseif x_hold_frames > 0 then
 		if x_hold_frames <= x_tap then
-			shoot(p.x,p.y,p.t_angle,p.pow)
+			if (p.cur_cd<=4 and p.cur_cd>=-4) then
+				local spread=abs(p.cur_cd)*0.05
+				spread=rnd(spread)-0.5*spread
+				shoot(p.x,p.y,p.t_angle,p.pow+spread)
+			end
 		end
 		x_hold_frames = 0
 	end
@@ -180,6 +186,10 @@ function update_player()
 			p.is_grounded = true
 		end
 	end
+	if p.cur_cd<-5 then
+		p.cur_cd+=p.cd
+	end
+	p.cur_cd-=1
 end
 
 function draw_player()
@@ -389,7 +399,7 @@ function update_shots()
 		 add(exps, {
 		 	x=ex_x,
 		 	y=ex_y,
-		 	r=2,
+		 	r=4,
 		 	cur_r=1,
 		 	hit_ids={},
 		 	dmg=5,
@@ -865,8 +875,8 @@ function load_room(x,y)
 		 		pow=0.5,
 					health=25,
 					is_knocked=false,
-					cd=15,
-					cur_cd=15
+					cd=140,
+					cur_cd=140
 		 	})
 			end
 		end
@@ -908,12 +918,12 @@ end
 // enemies
 function update_enemies()
 	for de in all(dumb_enemies) do
-		de.cur_cd-=1
 		if de.cur_cd==0 then
 			de.pow=abs(p.x-de.x)*0.65*0.01
 			shoot(de.x,de.y,de.t_angle,de.pow)
 			de.cur_cd=de.cd
 		end
+		de.cur_cd-=1
 		
 		if mapget(de.x,de.y+1)==0 then
 			de.y+=1
@@ -962,16 +972,33 @@ end
 -->8
 //ui
 function draw_ui()
-	pset(5,127,10)
+	draw_acc_marker(125)
+	draw_acc_marker(126)
+	draw_acc_marker(127)
+	draw_cd(p.cur_cd,p.cd,127,12)
+	draw_cd(p.cur_cd,p.cd,126,12)
+	draw_cd(p.cur_cd,p.cd,125,12)
  for e in all(dumb_enemies) do
-		draw_cd(e.cur_cd,e.cd,127)
+		draw_cd(e.cur_cd,e.cd,127,8)
  end
 end
 
-function draw_cd(cur_cd,cd,y)
+function draw_acc_marker(y)
+	pset(1,y,8)
+	pset(2,y,8)
+	pset(3,y,9)
+	pset(4,y,9)
+	pset(5,y,11)
+	pset(6,y,9)
+	pset(7,y,9)
+	pset(8,y,8)
+	pset(9,y,8)
+end
+
+function draw_cd(cur_cd,cd,y,col)
 	local cddraw=cur_cd+5
 	while cddraw < 128 do
-		pset(cddraw,y,8)
+		pset(cddraw,y,col)
 		cddraw+=cd
 	end
 end
