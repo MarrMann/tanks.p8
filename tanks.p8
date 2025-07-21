@@ -116,9 +116,32 @@ function handle_input()
 	elseif x_hold_frames > 0 then
 		if x_hold_frames <= x_tap then
 			if (p.cur_cd<=4 and p.cur_cd>=-4) then
+				acc.combo += 1
+				local accuracy=abs(p.cur_cd)
+				local col=0
+				local text=""
+				if accuracy==0 then
+					text="perfect!"
+					col=10
+				elseif accuracy<=2 then
+					text="good"
+					col=11
+				elseif accuracy<=4 then
+					text="ok"
+					col=9
+				end
+				add(hit_texts,{
+					x=p.x-8,
+					y=p.y-14,
+					col=col,
+					life=25,
+					text=text
+				})
+
 				local spread=abs(p.cur_cd)*0.05
 				spread=rnd(spread)-0.5*spread
 				shoot(p.x,p.y,p.t_angle,p.pow+spread)
+				p.cur_cd += p.cd
 			end
 		end
 		x_hold_frames = 0
@@ -188,14 +211,21 @@ function update_player()
 	end
 	if p.cur_cd<-5 then
 		p.cur_cd+=p.cd
+		
+		add(hit_texts,{
+			x=p.x-8,
+			y=p.y-14,
+			text="miss",
+			col=8,
+			life=25
+		})
+		acc.combo=0
 	end
 	p.cur_cd-=1
 end
 
 function draw_player()
 	draw_dbg()
-	
-	print("health="..p.health,7)
 	
 	// player sprite
 	if p.move then p.spr = (t%4)/2 end
@@ -948,7 +978,6 @@ function draw_enemies()
 		de.x += 4
 		de.y += 6
 
-		print(de.target_angle)
 		local tur_x = sin(de.t_angle)*4
 		local tur_y = cos(de.t_angle)*4
 		local t_end_x=de.x+tur_x
@@ -959,16 +988,17 @@ end
 -->8
 // todo
 
-//timing indicators
-///text indicators (perfect/good/ok/miss)
-///sound indicator??
-
 //map boundaries
 ///block player from moving outside boundaries when enemies/targets are present
 ///add bounce if knocked and hitting wall
 ///remove boundary once all targets are gone
 ///should boundary only be on sides?
 ///regen health when clearing a level?
+
+//health bars instead of health meter
+///method for drawing healthbar based on current health and max health
+///player health bar
+///enemy health bar
 
 //game over state
 ///lose when running out of health
@@ -985,7 +1015,14 @@ end
 ///should timing reset when you press too early?
 -->8
 //ui
+acc={
+	combo=0,
+	combo_col=7
+}
+
 function draw_ui()
+	print("health="..p.health,0,6,7)
+	
 	draw_acc_marker(125)
 	draw_acc_marker(126)
 	draw_acc_marker(127)
@@ -995,6 +1032,7 @@ function draw_ui()
  for e in all(dumb_enemies) do
 		draw_cd(e.cur_cd,e.cd,127,8)
  end
+	print("combo: "..acc.combo.."x",80,0,acc.combo_col)
 end
 
 function draw_acc_marker(y)
@@ -1016,6 +1054,7 @@ function draw_cd(cur_cd,cd,y,col)
 		cddraw+=cd
 	end
 end
+
 __gfx__
 00000000000000003333333344444444444440004000000000000000330000004000000000000004000000000000000000000000000000000000000000000000
 00000000000000003344343444444444444440004000000000000000343300004400000000000044000000000000000000000000000000000000000000000000
