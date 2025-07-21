@@ -73,6 +73,7 @@ p={
 	pow = 0.5,
 	is_grounded = false,
 	health=100,
+	max_health=100,
 	is_knocked=false,
 	cd=120,
 	cur_cd=120
@@ -904,6 +905,7 @@ function load_room(x,y)
 					target_angle=0.4,
 		 		pow=0.5,
 					health=25,
+					max_health=25,
 					is_knocked=false,
 					cd=140,
 					cur_cd=140
@@ -1021,18 +1023,18 @@ acc={
 }
 
 function draw_ui()
-	print("health="..p.health,0,6,7)
-	
+	print("combo: "..acc.combo.."x",0,0,acc.combo_col)
 	draw_acc_marker(125)
 	draw_acc_marker(126)
 	draw_acc_marker(127)
 	draw_cd(p.cur_cd,p.cd,127,12)
 	draw_cd(p.cur_cd,p.cd,126,12)
 	draw_cd(p.cur_cd,p.cd,125,12)
+	draw_healthbar(p.x,p.y,p.health,p.max_health)
  for e in all(dumb_enemies) do
 		draw_cd(e.cur_cd,e.cd,127,8)
+		draw_healthbar(e.x,e.y,e.health,e.max_health)
  end
-	print("combo: "..acc.combo.."x",80,0,acc.combo_col)
 end
 
 function draw_acc_marker(y)
@@ -1055,6 +1057,13 @@ function draw_cd(cur_cd,cd,y,col)
 	end
 end
 
+function draw_healthbar(x,y,hp,max_hp)
+	local length=8
+	local draw_length=(hp/max_hp)*length
+	for i=0,draw_length,1 do
+		pset(i+x-4,y-8,8)
+	end
+end
 __gfx__
 00000000000000003333333344444444444440004000000000000000330000004000000000000004000000000000000000000000000000000000000000000000
 00000000000000003344343444444444444440004000000000000000343300004400000000000044000000000000000000000000000000000000000000000000
