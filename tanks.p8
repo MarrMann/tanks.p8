@@ -75,6 +75,7 @@ p={
 	is_grounded = false,
 	health=100,
 	max_health=100,
+	health_regen=10,
 	is_knocked=false,
 	cd=120,
 	cur_cd=120
@@ -166,18 +167,20 @@ function handle_input()
 	end
 
 	// load next room at edges
-	if p.x < 0 then
-		p.x = 127
-		room.x -= 1
-		load_room(room.x, room.y)
-	elseif	p.x > 127 then
-		p.x = 0
-		room.x += 1
-		load_room(room.x, room.y)
-	elseif	p.y > 127 then
-		p.y = 0
-		room.y += 1
-		load_room(room.x, room.y)
+	if not room_state.bounds then
+		if p.x < 0 then
+			p.x = 127
+			room.x -= 1
+			load_room(room.x, room.y)
+		elseif	p.x > 127 then
+			p.x = 0
+			room.x += 1
+			load_room(room.x, room.y)
+		elseif	p.y > 127 then
+			p.y = 0
+			room.y += 1
+			load_room(room.x, room.y)
+		end
 	end
 end
 
@@ -314,7 +317,7 @@ function fallcolumn(x, y)
 end
 
 function mapget(x, y)
-	if (room_state.bounds and y == 127) return 1
+	if (room_state.bounds and y > 123) return 0b0001111
 
 	if (y < 0 or x < 0 or x > 127 or y > 127) return 0
 	local offset = (x + y*128) / 2
@@ -434,10 +437,10 @@ function update_shots()
 		 add(exps, {
 		 	x=ex_x,
 		 	y=ex_y,
-		 	r=10,
+		 	r=6,
 		 	cur_r=1,
 		 	hit_ids={},
-		 	dmg=5,
+		 	dmg=25,
 				force=7})
 		 
 		 // map/dirt particles
@@ -930,8 +933,8 @@ function load_room(x,y)
 		end
 	end
 
-	check_room_state() //could load room with no enemies
 	init_world()
+	check_room_state() //could load room with no enemies
 end
 
 function remove_tile(x,y)
@@ -957,14 +960,20 @@ end
 
 function check_room_state()
 	if #dumb_enemies==0 and #targets==0 then
+		if not room_state.completed then
+			p.health += p.health_regen
+			p.health = min(p.health, p.max_health)
+		end
 		room_state.bounds = false
 		room_state.completed = true
+	else
+		room_state.bounds = true
+		room_state.completed = false
 	end
 end
 
 function draw_bounds()
 	if room_state.bounds then
-		line(0,0,127,0,1)
 		line(127,0,127,124,1)
 		line(127,124,0,124,1)
 		line(0,124,0,0,1)
@@ -1023,12 +1032,10 @@ end
 -->8
 // todo
 
-//map boundaries
-///block player from moving outside boundaries when enemies/targets are present
-///add bounce if knocked and hitting wall
-///remove boundary once all targets are gone
-///should boundary only be on sides?
-///regen health when clearing a level?
+//update target hitting
+//it should count as a hit as
+//soon as the target itself gets
+//deformed
 
 //game over state
 ///lose when running out of health
@@ -1036,13 +1043,9 @@ end
 ///game over ui
 ///how to reset?
 
-//update target hitting
-//it should count as a hit as
-//soon as the target itself gets
-//deformed
-
 //thoughts
 ///should timing reset when you press too early?
+///should shots bounce or explode on wall bounds?
 -->8
 //ui
 acc={
@@ -1148,7 +1151,7 @@ __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+003d0000000000000000000000003d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1313131313131313131313131313131300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 000100000012002120041200512007120091200b1200c1200e1201012011120131201512017120181201a1201c1201d1201f1202112023120241202612028120291202b1202d1202f12030120321203412035120
