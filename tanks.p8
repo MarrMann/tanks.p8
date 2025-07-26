@@ -94,7 +94,7 @@ function handle_input()
 
 	// movement
 	if not p.is_knocked then
-		if btn(⬅️) then
+		if btn(⬅️) and (bounds==false or p.x > 1) then
 			local target_x = p.x-1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(-1,(fl_y-target_y))
@@ -103,7 +103,7 @@ function handle_input()
 				p.y -= sin(angle) * 0.5
 			end
 		end
-		if btn(➡️) then
+		if btn(➡️) and (bounds==false or p.x < 127) then
 			local target_x = p.x+1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(1,(fl_y-target_y))
@@ -1074,7 +1074,6 @@ end
 
 //bugs
 ///falling columns swaps pixels - they should not
-///player can get over the edges when bounds are active
 
 //game over state
 ///lose when running out of health
