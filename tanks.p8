@@ -201,7 +201,6 @@ end
 
 // keep for testing when needed
 function draw_dbg()
-
 end
 
 function update_player()
@@ -320,6 +319,11 @@ function fallcolumn(x, y)
 		mapset(x, y+1, col)
 		y -= 1
 		col = mapget(x,y)
+		for t in all(targets) do
+			if did_hit_target(x,y,t) then
+				remove_target(t)
+			end
+		end
 	end
 	mapset(x, y+1, startcol)
 end
@@ -425,18 +429,6 @@ function update_shots()
 			if (inf.prevx == inf.x and inf.prevy == inf.y) then
 				inf.prevx = s.xprev
 				inf.prevy = s.yprev
-			end
-			local target=did_hit_target(inf.x,inf.y)
-			if target!=nil then
-				add(hit_texts,{
-					x=inf.x,
-					y=inf.y,
-					col=10,
-					life=30,
-					text="+1"
-				})
-				del(targets,target)
-				check_room_state()
 			end
 			
 			ex_x=flr(inf.x)
@@ -589,7 +581,14 @@ function handle_exp_hits(exp)
 		end
 	end
 	
-	// targets??
+	for t in all(targets) do
+		if not tbl_contains(exp.hit_ids,t.id) then
+			local t_hit = circle_rect_col(exp.x,exp.y,exp.cur_r,t.x+3.5,t.y+3.5)
+			if t_hit then
+				remove_target(t)
+			end
+		end
+	end
 end
 
 function handle_exp_hit(exp,target)
@@ -953,6 +952,18 @@ function remove_tile(x,y)
 	end
 end
 
+function remove_target(t)
+	del(targets,t)
+	add(hit_texts,{
+		x=t.x+3,
+		y=t.y-3,
+		col=10,
+		life=30,
+		text="+1"
+	})
+	check_room_state()
+end
+
 // hit_text:x,y,col,life,text
 function draw_types()
 	for ht in all(hit_texts) do
@@ -988,14 +999,35 @@ function draw_bounds()
 	end
 end
 
-function did_hit_target(x,y)
-	for t in all(targets) do
-		if x>=t.x and x<=t.x+7 and y>=t.y	and y<=t.y+7 then
-			return t
-		end
+function did_hit_target(x,y,t)
+	if x>=t.x and x<=t.x+7 and y>=t.y	and y<=t.y+7 then
+		return true
 	end
-	return nil
+	return false
 end
+
+function circle_rect_col(cx,cy,r,rx,ry)
+	local testx = cx
+	local testy = cy
+	local w = 3.5
+
+	if cx < rx then testx=rx
+	elseif cx > rx+w then testx=rx+w
+	end
+	if cy < ry then testy = ry
+	elseif cy > ry+w then testy=ry+w
+	end
+
+	local distx=cx-testx
+	local disty=cy-testy
+	local dist=sqrt(distx^2+disty^2)
+
+	if dist <= r then
+		return true
+	end
+	return false
+end
+
 -->8
 // enemies
 function update_enemies()
