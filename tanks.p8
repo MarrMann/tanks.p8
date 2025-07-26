@@ -1072,10 +1072,9 @@ end
 -->8
 // todo
 
-//update target hitting
-//it should count as a hit as
-//soon as the target itself gets
-//deformed
+//bugs
+///falling columns swaps pixels - they should not
+///player can get over the edges when bounds are active
 
 //game over state
 ///lose when running out of health
