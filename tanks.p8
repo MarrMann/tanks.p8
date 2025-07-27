@@ -1074,6 +1074,10 @@ end
 
 //bugs
 ///falling columns swaps pixels - they should not
+////solution is probably to only add fallings
+////in the top most pixels when doing the brem circle.
+////so we should save all the last top half pixels,
+////then check their x positions against one another
 
 //game over state
 ///lose when running out of health
