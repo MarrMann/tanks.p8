@@ -1130,7 +1130,12 @@ end
 -->8
 // todo
 
-
+--playtest
+---have too many unanswered questions
+--entity dependant shots
+---each enemy and player can deal
+---varied damage, and have
+---larger/smaller explosion radius
 
 //thoughts
 ///should timing reset when you press too early?
