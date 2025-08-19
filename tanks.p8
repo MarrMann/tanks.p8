@@ -3,11 +3,30 @@ version 43
 __lua__
 // general
 
-wait_t = 0
-t = 0
-entity_id = 0
-
 function _init()
+	entity_id = 0
+	gameover = false
+	wait_t = 0
+	t = 0
+	p={
+		id = get_entity_id(),
+		x = 64,
+		y = 64,
+		xvel=0, // used when knocked
+		yvel=0,
+		move = false,
+		spr = 0,
+		t_angle = 0,
+		pow = 0.5,
+		is_grounded = false,
+		health=100,
+		max_health=100,
+		health_regen=10,
+		is_knocked=false,
+		cd=80,
+		cur_cd=80,
+		tickstep=20
+	}
 	load_room(0,0)
 end
 
@@ -24,7 +43,7 @@ function _update()
 	update_shots()
 	update_particles()
 	update_explosions()
-end	
+end
 
 function _draw()
 	cls()
@@ -62,30 +81,17 @@ end
 -->8
 // player stuff
 
-p={
-	id = get_entity_id(),
-	x = 64,
-	y = 64,
-	xvel=0, // used when knocked
-	yvel=0,
-	move = false,
-	spr = 0,
-	t_angle = 0,
-	pow = 0.5,
-	is_grounded = false,
-	health=100,
-	max_health=100,
-	health_regen=10,
-	is_knocked=false,
-	cd=80,
-	cur_cd=80,
-	tickstep=20
-}
-
 x_hold_frames = 0
 x_tap = 7
 
 function handle_input()
+	if gameover then
+		if btn(❎) then
+			_init()
+		end
+		return
+	end
+
 	local prev_x = p.x
 	local angle = 0
 	local fl_x = flr(p.x)
@@ -204,6 +210,8 @@ function draw_dbg()
 end
 
 function update_player()
+	if (gameover) return
+
 	// gravity
 	if not p.move and not p.is_knocked then
 		local grnd = get_ground(flr(p.x),flr(p.y))
@@ -238,6 +246,7 @@ end
 
 function draw_player()
 	draw_dbg()
+	if (gameover) return
 	
 	// player sprite
 	if p.move then p.spr = (t%4)/2 end
@@ -577,6 +586,9 @@ function handle_exp_hits(exp)
 	if not tbl_contains(exp.hit_ids,p.id) then
 		if handle_exp_hit(exp,p) then
 			p.health-=exp.dmg
+			if p.health <= 0 then
+				gameover = true
+			end
 			p.is_knocked=true
 			local f_x, f_y=get_knockback(p,exp)
 			p.xvel=f_x
@@ -1137,11 +1149,17 @@ function draw_ui()
 	draw_cd(p.cur_cd,p.cd,127,12)
 	draw_cd(p.cur_cd,p.cd,126,12)
 	draw_cd(p.cur_cd,p.cd,125,12)
-	draw_healthbar(p.x,p.y,p.health,p.max_health)
  for e in all(dumb_enemies) do
 		draw_cd(e.cur_cd,e.cd,127,8)
 		draw_healthbar(e.x,e.y,e.health,e.max_health)
  end
+
+	if gameover then
+		print("game over", 42, 60, 8)
+		print("press ❎ to restart", 24, 70, 8)
+		return
+	end
+	draw_healthbar(p.x,p.y,p.health,p.max_health)
 end
 
 function draw_acc_marker(y)
