@@ -295,6 +295,13 @@ function fallcolumn(x, y)
 	mapset(x, y+1, startcol)
 end
 
+function hit_bounds(x,y)
+	if (room_state.bounds and (x > 126 or x < 2 or y > 123)) then
+		return true
+	end
+	return false
+end
+
 function mapget(x, y)
 	if (room_state.bounds and y > 123) return 0b0001111
 
@@ -426,7 +433,7 @@ grav = 0.2
 function update_shots()
 	for i=#shots,1,-1 do
 		s = shots[i]
-		
+
 		// hit info
 		local inf = checkcol(s)
 		if (inf.didhit) then
@@ -434,7 +441,7 @@ function update_shots()
 				inf.prevx = s.xprev
 				inf.prevy = s.yprev
 			end
-			
+
 			ex_x=flr(inf.x)
 			ex_y=flr(inf.y)
 			hit_col=mapget(ex_x,ex_y)
@@ -446,25 +453,27 @@ function update_shots()
 		 	hit_ids={},
 		 	dmg=25,
 				force=7})
-		 
+
 		 // map/dirt particles
 		 n_x,n_y=get_q_normal(ex_x, ex_y)
 		 p_x=ex_x+n_x*2
 		 p_y=ex_y+n_y*2
-		 for k=1,5 do
-		 	add(map_parts, {
-		 		x=flr(p_x),
-				 y=flr(p_y),
-				 xvel=rnd(5.0) - 2.5,
-				 yvel=rnd(5.0) - 2.5,
-				 xprev=flr(inf.prevx),
-				 yprev=flr(inf.prevy),
-				 life=120,
-				 col=hit_col
-		 	})
-		 end
+			if hit_col!=0 then
+				for k=1,5 do
+					add(map_parts, {
+						x=flr(p_x),
+						y=flr(p_y),
+						xvel=rnd(5.0) - 2.5,
+						yvel=rnd(5.0) - 2.5,
+						xprev=flr(inf.prevx),
+						yprev=flr(inf.prevy),
+						life=120,
+						col=hit_col
+					})
+				end
+			end
 		end
-		
+
 		// particles
 		for j=1,2 do
 			add(parts, {
@@ -478,7 +487,7 @@ function update_shots()
 				col=8+j
 			})
 		end
-		
+
 		// update
 		s.x += s.xvel
 		s.y += s.yvel
@@ -756,7 +765,7 @@ function checkcollow(x0, y0, x1, y1)
  prevy = y
 
  for x=x0,x1,xi do
-  if (mapget(flr(x),flr(y)) != 0) then
+  if (mapget(flr(x),flr(y)) != 0 or hit_bounds(x,y)) then
    local d = sqrt(dx*dx+dy*dy)
   	dx /= d
   	dy /= d
@@ -780,7 +789,7 @@ function checkcollow(x0, y0, x1, y1)
 		prevy = y
 	end
 	//check endpoint
-	if (mapget(flr(x1),flr(y1)) != 0) then
+	if (mapget(flr(x1),flr(y1)) != 0 or hit_bounds(x1,y1)) then
 		return {
 	 	didhit=true,
 	 	x=x1,
@@ -804,7 +813,7 @@ function checkcolhigh(x0, y0, x1, y1)
  prevy = y0
  
  for y=y0,y1,sgn(dy) do
-  if (mapget(flr(x),flr(y)) != 0) then
+  if (mapget(flr(x),flr(y)) != 0 or hit_bounds(x,y)) then
   	local d = sqrt(dx*dx+dy*dy)
   	dx /= d
   	dy /= d
@@ -828,7 +837,7 @@ function checkcolhigh(x0, y0, x1, y1)
 		prevy = y
 	end
 	//check endpoint
-	if (mapget(flr(x1),flr(y1)) != 0) then
+	if (mapget(flr(x1),flr(y1)) != 0 or hit_bounds(x1,y1)) then
 		return {
 	 	didhit=true,
 	 	x=x1,
@@ -1100,8 +1109,6 @@ end
 --spawn player on nearest free spot
 --when entering new room.
 --look upwards first, then down.
-
---shots should explode on lvl walls.
 
 --more lenient hill traversal
 
