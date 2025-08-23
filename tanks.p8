@@ -103,7 +103,7 @@ function handle_input()
 			local target_x = p.x-1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(-1,(fl_y-target_y))
-			if (angle > 0.25 and angle < 0.7) then
+			if (angle > 0.25 and angle < 0.73) then
 				p.x += cos(angle) * 0.5
 				p.y -= sin(angle) * 0.5
 			end
@@ -112,7 +112,7 @@ function handle_input()
 			local target_x = p.x+1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(1,(fl_y-target_y))
-			if (angle < 0.25 or angle > 0.8) then
+			if (angle < 0.25 or angle > 0.77) then
 				p.x += cos(angle) * 0.5
 				p.y -= sin(angle) * 0.5
 			end
@@ -1109,8 +1109,6 @@ end
 --spawn player on nearest free spot
 --when entering new room.
 --look upwards first, then down.
-
---more lenient hill traversal
 
 --experiment with using player 2
 --controls for aiming
