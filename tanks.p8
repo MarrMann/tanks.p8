@@ -1128,14 +1128,37 @@ function draw_enemies()
 	end
 end
 -->8
-// todo
+--todo
 
---playtest
----have too many unanswered questions
---entity dependant shots
----each enemy and player can deal
----varied damage, and have
----larger/smaller explosion radius
+--bugs
+---there seems to be a delay(?)
+--when you clear a level and try
+--to move to the next, before
+--the walls actually disappear.
+--visually they dissapear immediately
+---weird behavior when you rocket jump
+---and hit a corner
+
+--spawn player on nearest free spot
+--when entering new room.
+--look upwards first, then down.
+
+--cd instead of rythm.
+--simple cd as first implementation.
+--add cd bars for player and enemies.
+
+--shots should explode on lvl walls.
+
+--more lenient hill traversal
+
+--experiment with using player 2
+--controls for aiming
+
+--ids for shots to differentiate
+--who shot each shot
+---lower self damage
+---individual shots for player/enemies
+----each can have different props
 
 //thoughts
 ///should timing reset when you press too early?
