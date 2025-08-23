@@ -23,9 +23,8 @@ function _init()
 		max_health=100,
 		health_regen=10,
 		is_knocked=false,
-		cd=80,
-		cur_cd=80,
-		tickstep=20
+		cd=60,
+		cur_cd=60,
 	}
 	load_room(0,0)
 end
@@ -125,33 +124,9 @@ function handle_input()
 		x_hold_frames += 1
 	elseif x_hold_frames > 0 then
 		if x_hold_frames <= x_tap then
-			if (p.cur_cd<=4 and p.cur_cd>=-4) then
-				acc.combo += 1
-				local accuracy=abs(p.cur_cd)
-				local col=0
-				local text=""
-				if accuracy==0 then
-					text="perfect!"
-					col=10
-				elseif accuracy<=2 then
-					text="good"
-					col=11
-				elseif accuracy<=4 then
-					text="ok"
-					col=9
-				end
-				add(hit_texts,{
-					x=p.x-8,
-					y=p.y-14,
-					col=col,
-					life=25,
-					text=text
-				})
-
-				local spread=abs(p.cur_cd)*0.05
-				spread=rnd(spread)-0.5*spread
-				shoot(p.x,p.y,p.t_angle,p.pow+spread)
-				p.cur_cd += p.cd
+			if (p.cur_cd <= 0) then
+				shoot(p.x,p.y,p.t_angle,p.pow)
+				p.cur_cd = p.cd
 			end
 		end
 		x_hold_frames = 0
@@ -222,25 +197,8 @@ function update_player()
 			p.is_grounded = true
 		end
 	end
-	if p.cur_cd<-5 then
-		p.cur_cd+=p.cd
-		
-		add(hit_texts,{
-			x=p.x-8,
-			y=p.y-14,
-			text="miss",
-			col=8,
-			life=25
-		})
-		acc.combo=0
-	end
-	p.cur_cd-=1
-	
-	// snd
-	if p.cur_cd==0 or p.cur_cd/p.tickstep==4 then
-		sfx(3,2,0,1)
-	elseif p.cur_cd%p.tickstep==0 then
-		sfx(2,2,0,1)
+	if p.cur_cd>0 then
+		p.cur_cd-=1
 	end
 end
 
@@ -1143,10 +1101,6 @@ end
 --when entering new room.
 --look upwards first, then down.
 
---cd instead of rythm.
---simple cd as first implementation.
---add cd bars for player and enemies.
-
 --shots should explode on lvl walls.
 
 --more lenient hill traversal
@@ -1172,17 +1126,9 @@ acc={
 }
 
 function draw_ui()
-	print("combo: "..acc.combo.."x",0,0,acc.combo_col)
-	draw_acc_marker(125)
-	draw_acc_marker(126)
-	draw_acc_marker(127)
-	draw_player_cd(p.cur_cd,p.cd,126,12,5)
-	draw_cd(p.cur_cd,p.cd,127,12)
-	draw_cd(p.cur_cd,p.cd,126,12)
-	draw_cd(p.cur_cd,p.cd,125,12)
  for e in all(dumb_enemies) do
-		draw_cd(e.cur_cd,e.cd,127,8)
-		draw_healthbar(e.x,e.y,e.health,e.max_health)
+		draw_bar(e.cur_cd,e.cd,e.x,e.y-6,10)
+		draw_bar(e.health,e.max_health,e.x,e.y-7,8)
  end
 
 	if gameover then
@@ -1190,50 +1136,18 @@ function draw_ui()
 		print("press ❎ to restart", 24, 70, 8)
 		return
 	end
-	draw_healthbar(p.x,p.y,p.health,p.max_health)
+	draw_bar(p.cur_cd,p.cd,p.x,p.y-6,10)
+	draw_bar(p.health,p.max_health,p.x,p.y-7,8)
 end
 
-function draw_acc_marker(y)
-	pset(1,y,8)
-	pset(2,y,8)
-	pset(3,y,9)
-	pset(4,y,9)
-	pset(5,y,11)
-	pset(6,y,9)
-	pset(7,y,9)
-	pset(8,y,8)
-	pset(9,y,8)
-end
-
-function draw_cd(cur_cd,cd,y,col)
-	local cddraw=cur_cd+5
-	while cddraw < 128 do
-		pset(cddraw,y,col)
-		cddraw+=cd
-	end
-end
-
-function draw_player_cd(cur_cd,cd,y,col,tickcol)
-	local cddraw=cur_cd+5
-	while cddraw < 128 do
-		pset(cddraw,y+1,col)
-		pset(cddraw,y,col)
-		pset(cddraw,y-1,col)
-		cddraw+=cd
-	end
-	
-	cddraw -= p.tickstep
-	while cddraw > 0 do
-		pset(cddraw,y,tickcol)
-		cddraw -= p.tickstep
-	end
-end
-
-function draw_healthbar(x,y,hp,max_hp)
+function draw_bar(cur_t,max_t,x,y,col)
 	local length=7
-	local draw_length=(hp/max_hp)*length
-	line(x-4,y-8,x-4+draw_length,y-8,8)
+	local draw_length=(cur_t/max_t)*length
+	if draw_length > 0 then
+		line(x-4,y,x-4+draw_length,y,col)
+	end
 end
+
 __gfx__
 00000000000000003333333344444444444440004000000000000000330000004000000000000004000000000000000000000000000000000000000000000000
 00000000000000003344343444444444444440004000000000000000343300004400000000000044000000000000000000000000000000000000000000000000
