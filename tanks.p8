@@ -296,7 +296,7 @@ function fallcolumn(x, y)
 end
 
 function hit_bounds(x,y)
-	if (room_state.bounds and (x > 126 or x < 2 or y > 123)) then
+	if (room_state.bounds and (x > 127 or x < 0)) then
 		return true
 	end
 	return false
@@ -967,6 +967,7 @@ function load_room(x,y)
 
 	init_world()
 	check_room_state() //could load room with no enemies
+	fix_player_spawn()
 end
 
 function remove_tile(x,y)
@@ -1013,6 +1014,17 @@ function check_room_state()
 	else
 		room_state.bounds = true
 		room_state.completed = false
+	end
+end
+
+function fix_player_spawn()
+	if mapget(flr(p.x),flr(p.y)) == 0 then
+		return
+	end
+	p.y = get_ground(flr(p.x),flr(p.y))-1
+	-- could be that no ground was found, so check again from the bottom
+	if mapget(flr(p.x),flr(p.y)) != 0 then
+		p.y = get_ground(flr(p.x),127)-1
 	end
 end
 
@@ -1105,10 +1117,6 @@ end
 --visually they dissapear immediately
 ---weird behavior when you rocket jump
 ---and hit a corner
-
---spawn player on nearest free spot
---when entering new room.
---look upwards first, then down.
 
 --experiment with using player 2
 --controls for aiming
