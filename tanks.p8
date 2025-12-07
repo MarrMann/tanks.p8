@@ -99,7 +99,7 @@ function handle_input()
 
 	// movement
 	if not p.is_knocked then
-		if btn(⬅️) and (bounds==false or p.x > 1) then
+		if btn(⬅️) and (room_state.bounds==false or p.x > 1) then
 			local target_x = p.x-1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(-1,(fl_y-target_y))
@@ -108,7 +108,7 @@ function handle_input()
 				p.y -= sin(angle) * 0.5
 			end
 		end
-		if btn(➡️) and (bounds==false or p.x < 127) then
+		if btn(➡️) and (room_state.bounds==false or p.x < 127) then
 			local target_x = p.x+1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(1,(fl_y-target_y))
@@ -167,6 +167,10 @@ function handle_input()
 end
 
 function get_ground(x, y)
+	if not room_state.bounds then
+		x = mid(0, x, 127)
+	end
+
 	local c = 0
 	while(mapget(x,y) == 0 and c < 128) do
 		y += 1
@@ -933,6 +937,9 @@ function load_room(x,y)
 	end
 	for p in all(parts) do
 		del(parts, p)
+	end
+	for exp in all(exps) do
+		del(exps, exp)
 	end
 
 	// room wrapping
