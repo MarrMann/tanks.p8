@@ -119,13 +119,13 @@ function handle_input()
 		end
 	end
 
-	// shooting
-	if btn(❎) then //holding ❎
+	-- shooting
+	if btn(❎) then --holding ❎
 		x_hold_frames += 1
 	elseif x_hold_frames > 0 then
 		if x_hold_frames <= x_tap then
 			if (p.cur_cd <= 0) then
-				shoot(p.x,p.y,p.t_angle,p.pow)
+				shoot(p.x,p.y,p.t_angle,p.pow,p.id)
 				p.cur_cd = p.cd
 			end
 		end
@@ -148,7 +148,7 @@ function handle_input()
 		p.move = true
 	end
 
-	// load next room at edges
+	-- load next room at edges
 	if not room_state.bounds then
 		if p.x < 0 then
 			p.x = 127
@@ -417,16 +417,17 @@ function explode_brem(o_x, o_y, r, fall)
 	end
 end
 -->8
-// shooting & collisions
+-- shooting & collisions
 
-// shot={
-// 	x,
-// 	y,
-// 	xvel,
-// 	yvel,
-// 	xprev,
-//		yprev
-// }
+-- shot={
+--  x,
+--  y,
+--  xvel,
+--  yvel,
+--  xprev,
+--  yprev,
+--  id
+-- }
 shots = {}
 grav = 0.2
 
@@ -452,7 +453,9 @@ function update_shots()
 		 	cur_r=1,
 		 	hit_ids={},
 		 	dmg=25,
-				force=7})
+				force=7,
+				id=s.id
+			})
 
 		 // map/dirt particles
 		 n_x,n_y=get_q_normal(ex_x, ex_y)
@@ -511,7 +514,7 @@ function draw_shots()
 	end
 end
 
-function shoot(x, y, angle, vel)
+function shoot(x, y, angle, vel, id)
 	vel *= 6
 	vel += 1
 	local dx = sin(angle)
@@ -522,20 +525,22 @@ function shoot(x, y, angle, vel)
 		x = ox,
 		y = oy,
 		xvel = dx*vel,
-		yvel = dy*vel
+		yvel = dy*vel,
+		id = id
 	}
 	add(shots, s)
 	sfx(1)
 end
 -->8
-//exp = {
-//	x=0,
-//	y=0,
-//	r=5,
-//	cur_r=0,
-// hit_ids=[],
-// dmg=25
-//}
+--exp = {
+--	x=0,
+--	y=0,
+--	r=5,
+--	cur_r=0,
+-- hit_ids=[],
+-- dmg=25,
+-- id = 1
+--}
 
 exps={}
 
@@ -552,7 +557,8 @@ function handle_exp_hits(exp)
 	// player
 	if not tbl_contains(exp.hit_ids,p.id) then
 		if handle_exp_hit(exp,p) then
-			p.health-=exp.dmg
+			local dmg=calc_dmg(exp,p.id)
+			p.health-=dmg
 			if p.health <= 0 then
 				gameover = true
 			end
@@ -566,7 +572,7 @@ function handle_exp_hits(exp)
 				y=p.y,
 				col=2,
 				life=30,
-				text=exp.dmg
+				text=dmg
 			})
 		end
 	end
@@ -575,13 +581,14 @@ function handle_exp_hits(exp)
 	for e in all(dumb_enemies) do
 		if not tbl_contains(exp.hit_ids,e.id) then
 			if handle_exp_hit(exp,e) then
-				e.health-=exp.dmg
+				local dmg=calc_dmg(exp,e.id)
+				e.health-=dmg
 				add(hit_texts,{
 					x=e.x-2,
 					y=e.y,
 					col=8,
 					life=30,
-					text=exp.dmg
+					text=dmg
 				})
 				if e.health <= 0 then
 					del(dumb_enemies,e)
@@ -605,6 +612,13 @@ function handle_exp_hits(exp)
 			end
 		end
 	end
+end
+
+function calc_dmg(exp, id)
+	local dmg=exp.dmg
+	if id == exp.id then dmg *= 0.1 end
+	dmg=ceil(dmg)
+	return dmg
 end
 
 function handle_exp_hit(exp,target)
@@ -1071,7 +1085,7 @@ function update_enemies()
 	for de in all(dumb_enemies) do
 		if de.cur_cd==0 then
 			de.pow=abs(p.x-de.x)*0.65*0.01
-			shoot(de.x,de.y,de.t_angle,de.pow)
+			shoot(de.x,de.y,de.t_angle,de.pow,de.id)
 			de.cur_cd=de.cd
 		end
 		de.cur_cd-=1
@@ -1127,12 +1141,12 @@ end
 ---individual shots for player/enemies
 ----each can have different props
 
-//thoughts
-///should timing reset when you press too early?
-///should shots bounce or explode on wall bounds?
-///maybe the player should spawn on a preset location each level?
+--thoughts
+---should timing reset when you press too early?
+---should shots bounce or explode on wall bounds?
+---maybe the player should spawn on a preset location each level?
 -->8
-//ui
+--ui
 acc={
 	combo=0,
 	combo_col=7
