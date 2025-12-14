@@ -24,7 +24,7 @@ function _init()
 		health_regen=10,
 		is_knocked=false,
 		cd=60,
-		cur_cd=60,
+		cur_cd=0,
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {},
@@ -123,8 +123,9 @@ function handle_input()
 
 	-- shooting
 	if btnp(🅾️) and p.cur_cd <= 0 then --z
-		shoot_from_turret(p.x,p.y,p.t_angle,p.pow,p.id,p.shot)
-		p.cur_cd = p.cd
+		local cd = shoot_from_turret(p.x,p.y,p.t_angle,p.pow,p.id,p.shot)
+		p.cur_cd = cd
+		p.cd = cd
 	end
 	
 	--power
@@ -484,8 +485,8 @@ shot_types = {
 			r=6,
 			init_r=1,
 			force=7,
-			count=1,
-			spread=0.0,
+			count=3,
+			spread=0.05,
 			pow=1,
 			cd=60
 		},
@@ -669,23 +670,28 @@ function draw_shots()
 end
 
 function shoot(x, y, angle, vel, id, shot_node)
-	local dx = sin(angle)
-	local dy = cos(angle)
 	local stats = resolve_params(shot_node)
-	local s = {
-		x = x,
-		y = y,
-		xvel = dx*vel,
-		yvel = dy*vel,
-		id = id,
-		frame = 0,
-		stats = stats,
-		init = shot_types[shot_node.name].init,
-		update = shot_types[shot_node.name].update,
-		on_collision = shot_types[shot_node.name].on_collision
-	}
-	s.init(s)
-	add(shots, s)
+	for i=1,stats.count do
+		local spread = ((-(stats.count - 1) * 0.5) + (i - 1)) * stats.spread
+		local dx = sin(angle+spread)
+		local dy = cos(angle+spread)
+
+		local s = {
+			x = x,
+			y = y,
+			xvel = dx*vel*stats.pow,
+			yvel = dy*vel*stats.pow,
+			id = id,
+			frame = 0,
+			stats = stats,
+			init = shot_types[shot_node.name].init,
+			update = shot_types[shot_node.name].update,
+			on_collision = shot_types[shot_node.name].on_collision
+		}
+		s.init(s)
+		add(shots, s)
+	end
+	return stats.cd
 end
 
 function shoot_from_turret(x, y, angle, vel, id, shot_node)
@@ -695,8 +701,8 @@ function shoot_from_turret(x, y, angle, vel, id, shot_node)
 	local dy = cos(angle)
 	local ox = x+dx*4
 	local oy = y-3+dy*4
-	shoot(ox,oy,angle,vel,id,shot_node)
 	sfx(1)
+	return shoot(ox,oy,angle,vel,id,shot_node)
 end
 -->8
 --exp = {
