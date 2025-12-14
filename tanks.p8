@@ -80,12 +80,9 @@ end
 -->8
 // player stuff
 
-x_hold_frames = 0
-x_tap = 7
-
 function handle_input()
 	if gameover then
-		if btn(❎) then
+		if btn(🅾️) then
 			_init()
 		end
 		return
@@ -120,29 +117,21 @@ function handle_input()
 	end
 
 	-- shooting
-	if btn(❎) then --holding ❎
-		x_hold_frames += 1
-	elseif x_hold_frames > 0 then
-		if x_hold_frames <= x_tap then
-			if (p.cur_cd <= 0) then
-				shoot(p.x,p.y,p.t_angle,p.pow,p.id)
-				p.cur_cd = p.cd
-			end
-		end
-		x_hold_frames = 0
+	if btnp(🅾️) and p.cur_cd <= 0 then --z
+		shoot(p.x,p.y,p.t_angle,p.pow,p.id)
+		p.cur_cd = p.cd
 	end
 	
-	if x_hold_frames > x_tap then
-		if btn(⬆️) then p.pow += 0.02 end
-		if btn(⬇️) then p.pow -= 0.02 end
-		p.pow=min(1.0,max(0.0,p.pow))
-		if btn(⬆️) or btn(⬇️) then
-			sfx(0, 3, p.pow*31, 2)
-		end
-	else
-		if btn(⬆️) then p.t_angle += 0.01 end
-		if btn(⬇️) then p.t_angle -= 0.01 end
+	--power
+	if btn(⬇️,1) then p.pow += 0.02 end --d
+	if btn(❎) then p.pow -= 0.02 end --x
+	p.pow=min(1.0,max(0.0,p.pow))
+	if btn(⬇️,1) or btn(❎) then
+		sfx(0, 3, p.pow*31, 2)
 	end
+	--angle
+	if btn(⬆️) then p.t_angle += 0.01 end
+	if btn(⬇️) then p.t_angle -= 0.01 end
 	
 	if prev_x != p.x then
 		p.move = true
@@ -218,14 +207,14 @@ function draw_player()
 	p.x += 4
 	p.y += 6
 
-	// turret
+	-- turret
 	local tur_x = sin(p.t_angle)*4
 	local tur_y = cos(p.t_angle)*4
 	local t_end_x=p.x+tur_x
 	local t_end_y=p.y-3+tur_y
 	line(p.x, p.y-3, t_end_x, t_end_y, 7)
 
- // crosshair
+ -- crosshair
  local cross_x = p.x+tur_x*8
  local cross_y = p.y-3+tur_y*8
  line(cross_x-2,cross_y,cross_x-4,cross_y,7)
@@ -233,8 +222,8 @@ function draw_player()
  line(cross_x,cross_y-2,cross_x,cross_y-4,7)
  line(cross_x,cross_y+2,cross_x,cross_y+4,7)
 
- // power
- if btn(❎) and x_hold_frames > x_tap then
+ -- power
+ if btn(⬇️,1) or btn(❎) then
 	 local pow_col = 8
 	 if p.pow > 0.33 then pow_col=9 end
 	 if p.pow > 0.66 then pow_col=11 end
@@ -923,24 +912,12 @@ enemy_t = 61
 
 function load_room(x,y)
  // clear
-	for t in all(targets) do
-		del(targets, t)
-	end
-	for e in all(dumb_enemies) do
-		del(dumb_enemies, e)
-	end
-	for s in all(shots) do
-		del(shots, s)
-	end
-	for mp in all(map_parts) do
-		del(map_parts, mp)
-	end
-	for p in all(parts) do
-		del(parts, p)
-	end
-	for exp in all(exps) do
-		del(exps, exp)
-	end
+	del_table_contents(targets)
+	del_table_contents(dumb_enemies)
+	del_table_contents(shots)
+	del_table_contents(map_parts)
+	del_table_contents(parts)
+	del_table_contents(exps)
 
 	// room wrapping
 	if x < 0 then
@@ -989,6 +966,12 @@ function load_room(x,y)
 	init_world()
 	check_room_state() //could load room with no enemies
 	fix_player_spawn()
+end
+
+function del_table_contents(tbl)
+	for t in all(tbl) do
+		del(tbl, t)
+	end
 end
 
 function remove_tile(x,y)
@@ -1130,14 +1113,12 @@ end
 -->8
 --todo
 
---bugs
----there seems to be a delay(?)
---when you clear a level and try
---to move to the next, before
---the walls actually disappear.
---visually they dissapear immediately
----weird behavior when you rocket jump
----and hit a corner
+--performance:
+---could consider batch removal of
+---dirt in explosions, e.g.
+----1. loop over all explosions,
+----get pixels for removal back
+----2. batch remove all pixels
 
 --experiment with using player 2
 --controls for aiming
@@ -1150,7 +1131,6 @@ end
 
 --thoughts
 ---should timing reset when you press too early?
----should shots bounce or explode on wall bounds?
 ---maybe the player should spawn on a preset location each level?
 -->8
 --ui
