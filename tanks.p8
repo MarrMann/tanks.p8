@@ -25,6 +25,11 @@ function _init()
 		is_knocked=false,
 		cd=60,
 		cur_cd=60,
+		shot = {
+			name = shot_types.basic.name,
+			modifiers = {},
+			child = nil
+		}
 	}
 	load_room(0,0)
 end
@@ -118,7 +123,7 @@ function handle_input()
 
 	-- shooting
 	if btnp(🅾️) and p.cur_cd <= 0 then --z
-		shoot_from_turret(p.x,p.y,p.t_angle,p.pow,p.id,shot_types.split.name)
+		shoot_from_turret(p.x,p.y,p.t_angle,p.pow,p.id,p.shot)
 		p.cur_cd = p.cd
 	end
 	
@@ -424,16 +429,89 @@ end
 shots = {}
 grav = 0.2
 
+modifiers = {
+	count = {
+		name = "count",
+		apply = function(stats, count)
+			stats.count += count
+			stats.spread += 0.05 * count
+		end
+	},
+	dmg_flat = {
+		name = "dmg",
+		apply = function(stats, count)
+			stats.dmg += 5 * count
+		end
+	},
+	size = {
+		name = "size",
+		apply = function(stats, count)
+			stats.r += 1 * count
+		end
+	},
+	heavy = {
+		name = "heavy",
+		apply = function(stats, count)
+			stats.dmg_mult += 0.5 * count
+			stats.force += 2 * count
+			stats.pow_mult -= 0.2 * count
+			stats.cd += 20 * count
+		end
+	},
+	dmg_mult = {
+		name = "dmg_mult",
+		apply = function(stats, count)
+			stats.dmg_mult += 0.1 * count
+		end
+	},
+	mini = {
+		name = "mini",
+		apply = function(stats, count)
+			stats.dmg_mult *= 0.5^count
+			stats.r_mult *= 0.5^count
+			stats.cd_mult *= 0.35^count
+			stats.force_mult *= 0.5^count
+			stats.pow += 0.2 * count
+		end
+	}
+}
+
 shot_types = {
 	basic = {
 		name = "basic",
+		stats = {
+			dmg=25,
+			r=6,
+			init_r=1,
+			force=7,
+			count=1,
+			spread=0.0,
+			pow=1,
+			cd=60
+		},
 		init = function(s) end,
+		interpret_semantics = function(sem)
+			stats = shot_types.basic.stats
+			stats.count += sem.count
+			stats.dmg += sem.dmg
+			stats.dmg *= sem.dmg_mult
+			stats.r += sem.r
+			stats.r *= sem.r_mult
+			stats.init_r = 1
+			stats.force += sem.force
+			stats.force *= sem.force_mult
+			stats.pow += sem.pow
+			stats.pow *= sem.pow_mult
+			stats.cd += sem.cd
+			stats.cd *= sem.cd_mult
+			return stats
+		end,
 		update = function(s)
 			basic_update(s)
 			return true
 		end,
 		on_collision = function(s, inf)
-			explode(s,inf,1,6,25,7)
+			explode(s,inf)
 		end
 	},
 	split = {
@@ -461,6 +539,35 @@ shot_types = {
 	}
 }
 
+function resolve_semantic_stats(mods)
+	local semantics = {
+		count=0,
+		dmg=0,
+		dmg_mult=1,
+		r=0,
+		r_mult=1,
+		force=0,
+		force_mult=1,
+		pow=0,
+		pow_mult=1,
+		cd=0,
+		cd_mult=1
+	}
+
+	for id,mod in pairs(mods) do
+		modifiers[id].apply(semantics, mod.stacks)
+	end
+
+	return semantics
+end
+
+function resolve_params(shot_node)
+	local def = shot_types[shot_node.name]
+	local semantics = resolve_semantic_stats(shot_node.mods)
+
+	return def.interpret_semantics(semantics)
+end
+
 function vel_to_angle(xv, yv)
 	return atan2(xv, yv) - 0.25
 end
@@ -471,18 +578,18 @@ function basic_update(s)
 	s.yvel += grav
 end
 
-function explode(s,inf,init_r,r,dmg,force)
+function explode(s,inf)
 	ex_x=flr(inf.x)
 	ex_y=flr(inf.y)
 	hit_col=mapget(ex_x,ex_y)
 	add(exps, {
 		x=ex_x,
 		y=ex_y,
-		r=r,
-		cur_r=init_r,
+		r=s.stats.r,
+		cur_r=s.stats.init_r,
 		hit_ids={},
-		dmg=dmg,
-		force=force,
+		dmg=s.stats.dmg,
+		force=s.stats.force,
 		id=s.id
 	})
 end
@@ -561,9 +668,10 @@ function draw_shots()
 	end
 end
 
-function shoot(x, y, angle, vel, id, shot_type)
+function shoot(x, y, angle, vel, id, shot_node)
 	local dx = sin(angle)
 	local dy = cos(angle)
+	local stats = resolve_params(shot_node)
 	local s = {
 		x = x,
 		y = y,
@@ -571,22 +679,23 @@ function shoot(x, y, angle, vel, id, shot_type)
 		yvel = dy*vel,
 		id = id,
 		frame = 0,
-		init = shot_types[shot_type].init,
-		update = shot_types[shot_type].update,
-		on_collision = shot_types[shot_type].on_collision
+		stats = stats,
+		init = shot_types[shot_node.name].init,
+		update = shot_types[shot_node.name].update,
+		on_collision = shot_types[shot_node.name].on_collision
 	}
 	s.init(s)
 	add(shots, s)
 end
 
-function shoot_from_turret(x, y, angle, vel, id, shot_type)
+function shoot_from_turret(x, y, angle, vel, id, shot_node)
 	vel *= 6
 	vel += 1
 	local dx = sin(angle)
 	local dy = cos(angle)
 	local ox = x+dx*4
 	local oy = y-3+dy*4
-	shoot(ox,oy,angle,vel,id,shot_type)
+	shoot(ox,oy,angle,vel,id,shot_node)
 	sfx(1)
 end
 -->8
