@@ -118,7 +118,7 @@ function handle_input()
 
 	-- shooting
 	if btnp(🅾️) and p.cur_cd <= 0 then --z
-		shoot(p.x,p.y,p.t_angle,p.pow,p.id,shot_types.basic.name)
+		shoot_from_turret(p.x,p.y,p.t_angle,p.pow,p.id,shot_types.split.name)
 		p.cur_cd = p.cd
 	end
 	
@@ -430,12 +430,40 @@ shot_types = {
 		init = function(s) end,
 		update = function(s)
 			basic_update(s)
+			return true
 		end,
 		on_collision = function(s, inf)
 			explode(s,inf,1,6,25,7)
 		end
+	},
+	split = {
+		name = "split",
+		init = function(s) end,
+		update = function(s)
+			prev_yvel = s.yvel
+			basic_update(s)
+			if s.yvel > 0 and prev_yvel <= 0 then
+				local angle = vel_to_angle(s.xvel,s.yvel)
+				local speed = sqrt(s.xvel*s.xvel + s.yvel*s.yvel)
+				local spread = 0.075
+				
+				shoot(s.x,s.y, angle, speed, s.id, shot_types.basic.name)
+				shoot(s.x,s.y, angle + spread, speed, s.id, shot_types.basic.name)
+				shoot(s.x,s.y, angle - spread, speed, s.id, shot_types.basic.name)
+
+				return false
+			end
+			return true
+		end,
+		on_collision = function(s, inf)
+
+		end
 	}
 }
+
+function vel_to_angle(xv, yv)
+	return atan2(xv, yv) - 0.25
+end
 
 function basic_update(s)
 	s.x += s.xvel
@@ -513,8 +541,8 @@ function update_shots()
 		end
 
 		-- update
-		s.update(s)
-		if s.y > 128 or s.x > 128 or s.x < 0 then
+		keep_alive = s.update(s)
+		if keep_alive == false or s.y > 128 or s.x > 128 or s.x < 0 then
 			del(shots, s)
 		end
 	end
@@ -534,15 +562,11 @@ function draw_shots()
 end
 
 function shoot(x, y, angle, vel, id, shot_type)
-	vel *= 6
-	vel += 1
 	local dx = sin(angle)
 	local dy = cos(angle)
-	local ox = x+dx*4
-	local oy = y-3+dy*4
 	local s = {
-		x = ox,
-		y = oy,
+		x = x,
+		y = y,
 		xvel = dx*vel,
 		yvel = dy*vel,
 		id = id,
@@ -553,6 +577,16 @@ function shoot(x, y, angle, vel, id, shot_type)
 	}
 	s.init(s)
 	add(shots, s)
+end
+
+function shoot_from_turret(x, y, angle, vel, id, shot_type)
+	vel *= 6
+	vel += 1
+	local dx = sin(angle)
+	local dy = cos(angle)
+	local ox = x+dx*4
+	local oy = y-3+dy*4
+	shoot(ox,oy,angle,vel,id,shot_type)
 	sfx(1)
 end
 -->8
@@ -1109,7 +1143,7 @@ function update_enemies()
 	for de in all(dumb_enemies) do
 		if de.cur_cd==0 then
 			de.pow=abs(p.x-de.x)*0.65*0.01
-			shoot(de.x,de.y,de.t_angle,de.pow,de.id,shot_types.basic.name)
+			shoot_from_turret(de.x,de.y,de.t_angle,de.pow,de.id,shot_types.basic.name)
 			de.cur_cd=de.cd
 		end
 		de.cur_cd-=1
