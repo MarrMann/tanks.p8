@@ -118,7 +118,7 @@ function handle_input()
 
 	-- shooting
 	if btnp(🅾️) and p.cur_cd <= 0 then --z
-		shoot(p.x,p.y,p.t_angle,p.pow,p.id)
+		shoot(p.x,p.y,p.t_angle,p.pow,p.id,shot_types.basic.name)
 		p.cur_cd = p.cd
 	end
 	
@@ -424,33 +424,61 @@ end
 shots = {}
 grav = 0.2
 
+shot_types = {
+	basic = {
+		name = "basic",
+		init = function(s) end,
+		update = function(s)
+			basic_update(s)
+		end,
+		on_collision = function(s, inf)
+			explode(s,inf,1,6,25,7)
+		end
+	}
+}
+
+function basic_update(s)
+	s.x += s.xvel
+	s.y += s.yvel
+	s.yvel += grav
+end
+
+function explode(s,inf,init_r,r,dmg,force)
+	ex_x=flr(inf.x)
+	ex_y=flr(inf.y)
+	hit_col=mapget(ex_x,ex_y)
+	add(exps, {
+		x=ex_x,
+		y=ex_y,
+		r=r,
+		cur_r=init_r,
+		hit_ids={},
+		dmg=dmg,
+		force=force,
+		id=s.id
+	})
+end
+
 function update_shots()
 	for i=#shots,1,-1 do
 		s = shots[i]
+		s.frame += 1
 
-		// hit info
+		-- check collision
 		local inf = checkcol(s)
-		if (inf.didhit) then
+		if inf.didhit then
 			if (inf.prevx == inf.x and inf.prevy == inf.y) then
 				inf.prevx = s.xprev
 				inf.prevy = s.yprev
 			end
 
-			ex_x=flr(inf.x)
-			ex_y=flr(inf.y)
-			hit_col=mapget(ex_x,ex_y)
-		 add(exps, {
-		 	x=ex_x,
-		 	y=ex_y,
-		 	r=6,
-		 	cur_r=1,
-		 	hit_ids={},
-		 	dmg=25,
-				force=7,
-				id=s.id
-			})
+			local keep_alive = s.on_collision(s, inf)
+			if not keep_alive then
+				del(shots, s)
+				return
+			end
 
-		 // map/dirt particles
+		 -- map/dirt particles
 		 n_x,n_y=get_q_normal(ex_x, ex_y)
 		 p_x=ex_x+n_x*2
 		 p_y=ex_y+n_y*2
@@ -484,11 +512,9 @@ function update_shots()
 			})
 		end
 
-		// update
-		s.x += s.xvel
-		s.y += s.yvel
-		s.yvel += grav
-		if inf.didhit or s.y > 128 or s.x > 128 or s.x < 0 then
+		-- update
+		s.update(s)
+		if s.y > 128 or s.x > 128 or s.x < 0 then
 			del(shots, s)
 		end
 	end
@@ -507,7 +533,7 @@ function draw_shots()
 	end
 end
 
-function shoot(x, y, angle, vel, id)
+function shoot(x, y, angle, vel, id, shot_type)
 	vel *= 6
 	vel += 1
 	local dx = sin(angle)
@@ -519,8 +545,13 @@ function shoot(x, y, angle, vel, id)
 		y = oy,
 		xvel = dx*vel,
 		yvel = dy*vel,
-		id = id
+		id = id,
+		frame = 0,
+		init = shot_types[shot_type].init,
+		update = shot_types[shot_type].update,
+		on_collision = shot_types[shot_type].on_collision
 	}
+	s.init(s)
 	add(shots, s)
 	sfx(1)
 end
@@ -703,7 +734,10 @@ function update_particles()
 			ent_y=hit_y+n_y
 			ent.x=ent_x
 			ent.y=ent_y
+			ent.xvel=0
+			ent.yvel=0
 			ent.is_knocked=false
+			ent.is_grounded=true
 			del(knocked_entities, ent)
 		else
 			ent.x += ent.xvel
@@ -865,7 +899,7 @@ function get_normal(x, y)
  for offset_y = -1, 1 do
   for offset_x = -1, 1 do
    if offset_x != 0 or offset_y != 0 then
-     	
+
     local value = mapget(flr(x + offset_x), flr(y + offset_y))
     dx += offset_x * value
     dy += offset_y * value
@@ -1075,7 +1109,7 @@ function update_enemies()
 	for de in all(dumb_enemies) do
 		if de.cur_cd==0 then
 			de.pow=abs(p.x-de.x)*0.65*0.01
-			shoot(de.x,de.y,de.t_angle,de.pow,de.id)
+			shoot(de.x,de.y,de.t_angle,de.pow,de.id,shot_types.basic.name)
 			de.cur_cd=de.cd
 		end
 		de.cur_cd-=1
@@ -1120,18 +1154,23 @@ end
 ----get pixels for removal back
 ----2. batch remove all pixels
 
---experiment with using player 2
---controls for aiming
+--jump:
+---hold d and x to jump in the
+---direction we're aiming
+---limit jumps to 1-3 per room
+---upgrades can affect jumps
 
 --ids for shots to differentiate
 --who shot each shot
----lower self damage
 ---individual shots for player/enemies
 ----each can have different props
 
---thoughts
----should timing reset when you press too early?
----maybe the player should spawn on a preset location each level?
+--improvements:
+---rocket jumping feels a little
+----inconsistent, it's either a
+----lot of velocity, or none at
+----all
+
 -->8
 --ui
 acc={
