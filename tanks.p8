@@ -27,7 +27,8 @@ function _init()
 		cur_cd=0,
 		shot = {
 			name = shot_types.basic.name,
-			modifiers = {},
+			modifiers = {
+			},
 			child = nil
 		}
 	}
@@ -435,7 +436,7 @@ modifiers = {
 		name = "count",
 		apply = function(stats, count)
 			stats.count += count
-			stats.spread += 0.05 * count
+			stats.spread += 0.025 * count
 		end
 	},
 	dmg_flat = {
@@ -474,6 +475,12 @@ modifiers = {
 			stats.force_mult *= 0.5^count
 			stats.pow += 0.2 * count
 		end
+	},
+	slow_reload = {
+		name = "slow_reload",
+		apply = function(stats, count)
+			stats.cd_mult += 2.2*count
+		end
 	}
 }
 
@@ -485,14 +492,15 @@ shot_types = {
 			r=6,
 			init_r=1,
 			force=7,
-			count=3,
-			spread=0.05,
+			count=1,
+			spread=0.0,
 			pow=1,
 			cd=60
 		},
 		init = function(s) end,
 		interpret_semantics = function(sem)
-			stats = shot_types.basic.stats
+			local base = shot_types.basic.stats
+			local stats = copy_table(base)
 			stats.count += sem.count
 			stats.dmg += sem.dmg
 			stats.dmg *= sem.dmg_mult
@@ -505,6 +513,8 @@ shot_types = {
 			stats.pow *= sem.pow_mult
 			stats.cd += sem.cd
 			stats.cd *= sem.cd_mult
+			stats.spread += sem.spread
+			stats.spread *= sem.spread_mult
 			return stats
 		end,
 		update = function(s)
@@ -552,7 +562,9 @@ function resolve_semantic_stats(mods)
 		pow=0,
 		pow_mult=1,
 		cd=0,
-		cd_mult=1
+		cd_mult=1,
+		spread = 0,
+		spread_mult = 1
 	}
 
 	for id,mod in pairs(mods) do
@@ -564,7 +576,7 @@ end
 
 function resolve_params(shot_node)
 	local def = shot_types[shot_node.name]
-	local semantics = resolve_semantic_stats(shot_node.mods)
+	local semantics = resolve_semantic_stats(shot_node.modifiers)
 
 	return def.interpret_semantics(semantics)
 end
@@ -672,7 +684,7 @@ end
 function shoot(x, y, angle, vel, id, shot_node)
 	local stats = resolve_params(shot_node)
 	for i=1,stats.count do
-		local spread = ((-(stats.count - 1) * 0.5) + (i - 1)) * stats.spread
+		local spread = -stats.spread * 0.5 + (i - 1) * (stats.spread / (stats.count - 1))
 		local dx = sin(angle+spread)
 		local dy = cos(angle+spread)
 
@@ -1140,7 +1152,14 @@ function load_room(x,y)
 					max_health=25,
 					is_knocked=false,
 					cd=140,
-					cur_cd=140
+					cur_cd=140,
+					shot = {
+						name = shot_types.basic.name,
+						modifiers = {
+						 slow_reload = { stacks = 1 }
+						},
+						child = nil
+					}
 		 	})
 			end
 		end
@@ -1149,6 +1168,15 @@ function load_room(x,y)
 	init_world()
 	check_room_state() //could load room with no enemies
 	fix_player_spawn()
+end
+
+function add_modifier(mods, id, stacks)
+	local m = mods[id]
+	if m then
+		m.stacks += stacks
+	else
+		mods[id] = { stacks = stacks }
+	end
 end
 
 function del_table_contents(tbl)
@@ -1256,10 +1284,11 @@ end
 // enemies
 function update_enemies()
 	for de in all(dumb_enemies) do
-		if de.cur_cd==0 then
+		if de.cur_cd<=0 then
 			de.pow=abs(p.x-de.x)*0.65*0.01
-			shoot_from_turret(de.x,de.y,de.t_angle,de.pow,de.id,shot_types.basic.name)
-			de.cur_cd=de.cd
+			local cd = shoot_from_turret(de.x,de.y,de.t_angle,de.pow,de.id,de.shot)
+			de.cur_cd = cd
+			de.cd = cd
 		end
 		de.cur_cd-=1
 		
@@ -1295,7 +1324,6 @@ function draw_enemies()
 end
 -->8
 --todo
-
 --performance:
 ---could consider batch removal of
 ---dirt in explosions, e.g.
@@ -1309,10 +1337,8 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
---ids for shots to differentiate
---who shot each shot
----individual shots for player/enemies
-----each can have different props
+--implement more shot types and
+--modifiers
 
 --improvements:
 ---rocket jumping feels a little
@@ -1320,13 +1346,11 @@ end
 ----lot of velocity, or none at
 ----all
 
+--test:
+---test all modifiers
+
 -->8
 --ui
-acc={
-	combo=0,
-	combo_col=7
-}
-
 function draw_ui()
  for e in all(dumb_enemies) do
 		draw_bar(e.cur_cd,e.cd,e.x,e.y-6,10)
@@ -1348,6 +1372,13 @@ function draw_bar(cur_t,max_t,x,y,col)
 	if draw_length > 0 then
 		line(x-4,y,x-4+draw_length,y,col)
 	end
+end
+
+--utils
+function copy_table(t)
+	local n = {}
+	for k,v in pairs(t) do n[k] = v end
+	return n
 end
 
 __gfx__
@@ -1393,7 +1424,7 @@ __map__
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f000000000000000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f00000000000000000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f00000000000000000000000300000000000000000000000000000000000000000000000000000000090800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f00000000000000000000003f00000000000000000000000000000000000000000000000000000009131308000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3f3f3f3f3f3f3f3f3f3f3f3f3d3f3f3f00000000000000000000003f00000000000000000000000000000000000000000000000000000009131308000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0202020202020202020202020202020213131308000000000000003f0000000000003e0000000000000000131313000000000000003f0913131313080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 13131313131313131313131313131313131313131313131313131313131313131313130000000000000000133e131313130000003f0913131313131308003d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
