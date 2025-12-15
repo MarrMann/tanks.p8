@@ -492,7 +492,7 @@ shot_types = {
 			r=6,
 			init_r=1,
 			force=7,
-			count=2,
+			count=1,
 			spread=0.2,
 			pow=1,
 			cd=60
@@ -1422,7 +1422,13 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
--- current todo:
+-- currently working on: shooting bugs
+--when shooting multiple basic
+---shots, the angles seem kind of
+---wrong. easily visualized by
+---setting shot count to 5
+--terrain still seems to flip if
+---multiple shots hit the same area
 --how do we ensure the correct
 ---number of children when generating
 ---the shot? right now nothing stops
