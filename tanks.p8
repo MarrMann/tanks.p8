@@ -26,7 +26,7 @@ function _init()
 		cd=60,
 		cur_cd=0,
 		shot = {
-			name = shot_types.basic.name,
+			name = shot_types.split.name,
 			modifiers = {
 			},
 			child = nil
@@ -492,30 +492,52 @@ shot_types = {
 			r=6,
 			init_r=1,
 			force=7,
-			count=1,
-			spread=0.0,
+			count=2,
+			spread=0.2,
 			pow=1,
 			cd=60
 		},
-		init = function(s) end,
+		get_child_count = function(s,m)
+			return 0
+		end,
+		init = function(s)
+			if s.stats == nil then
+				return
+			end
+
+			local base_angle = atan2(s.xvel, s.yvel)
+			local speed = sqrt(s.xvel*s.xvel + s.yvel*s.yvel)
+
+			local count = max(1, s.stats.count)
+			local spread = s.stats.spread
+
+			for i=1,count do
+				local a = base_angle
+				local l_spread = spread
+
+				if count > 1 then
+					local t = (i - 1) / (count - 1)
+					l_spread = -spread * 0.5 + (i - 1) * (spread / (count - 1))
+				end
+
+				local xv = cos(a) * speed + l_spread
+				local yv = sin(a) * speed + l_spread
+				if i == 1 then
+					s.xvel = xv
+					s.yvel = yv
+				else
+					local stat_copy = copy_table(s.stats)
+					stat_copy.count = 0
+					stat_copy.pow = 1
+
+					shoot_w_stats(s.x, s.y, xv, yv, s.id, s.node, stat_copy)
+				end
+			end
+		end,
 		interpret_semantics = function(sem)
 			local base = shot_types.basic.stats
 			local stats = copy_table(base)
-			stats.count += sem.count
-			stats.dmg += sem.dmg
-			stats.dmg *= sem.dmg_mult
-			stats.r += sem.r
-			stats.r *= sem.r_mult
-			stats.init_r = 1
-			stats.force += sem.force
-			stats.force *= sem.force_mult
-			stats.pow += sem.pow
-			stats.pow *= sem.pow_mult
-			stats.cd += sem.cd
-			stats.cd *= sem.cd_mult
-			stats.spread += sem.spread
-			stats.spread *= sem.spread_mult
-			return stats
+			return apply_sem_basic(sem, stats)
 		end,
 		update = function(s)
 			basic_update(s)
@@ -525,30 +547,79 @@ shot_types = {
 			explode(s,inf)
 		end
 	},
+
 	split = {
 		name = "split",
+		stats = {
+			dmg = 10,
+			r = 4,
+			init_r = 1,
+			force = 4,
+			count = 3,
+			spread = 1.2,
+			pow = 1,
+			cd = 60
+		},
+		get_child_count = function(s, mods)
+			local sem = resolve_semantic_stats(mods)
+			return sem.count + shot_types.split.stats.count
+		end,
 		init = function(s) end,
+		interpret_semantics = function(sem)
+			local base = shot_types.split.stats
+			local stats = copy_table(base)
+			return apply_sem_basic(sem, stats)
+		end,
 		update = function(s)
 			prev_yvel = s.yvel
 			basic_update(s)
 			if s.yvel > 0 and prev_yvel <= 0 then
 				local angle = vel_to_angle(s.xvel,s.yvel)
 				local speed = sqrt(s.xvel*s.xvel + s.yvel*s.yvel)
-				local spread = 0.075
-				
-				shoot(s.x,s.y, angle, speed, s.id, shot_types.basic.name)
-				shoot(s.x,s.y, angle + spread, speed, s.id, shot_types.basic.name)
-				shoot(s.x,s.y, angle - spread, speed, s.id, shot_types.basic.name)
 
+				for i=1,s.stats.count do
+					local spread = -s.stats.spread * 0.5 + (i - 1) * (s.stats.spread / (s.stats.count - 1))
+					if not s.children == nil and count(s.children) >= i then
+						shoot(s.x, s.y, angle, speed + spread, s.id, s.children[i])
+					else
+						shoot(s.x, s.y, angle, speed + spread, s.id, generate_shot(shot_types.basic.name,nil,nil))
+					end
+				end
 				return false
 			end
 			return true
 		end,
 		on_collision = function(s, inf)
-
+			explode(s,inf)
 		end
 	}
 }
+
+function generate_shot(name, modifiers, children)
+	return {
+		name = name,
+		modifiers = modifiers,
+		children = children
+	}
+end
+
+function apply_sem_basic(sem, stats)
+	stats.count += sem.count
+	stats.dmg += sem.dmg
+	stats.dmg *= sem.dmg_mult
+	stats.r += sem.r
+	stats.r *= sem.r_mult
+	stats.init_r = 1
+	stats.force += sem.force
+	stats.force *= sem.force_mult
+	stats.pow += sem.pow
+	stats.pow *= sem.pow_mult
+	stats.cd += sem.cd
+	stats.cd *= sem.cd_mult
+	stats.spread += sem.spread
+	stats.spread *= sem.spread_mult
+	return stats
+end
 
 function resolve_semantic_stats(mods)
 	local semantics = {
@@ -577,7 +648,6 @@ end
 function resolve_params(shot_node)
 	local def = shot_types[shot_node.name]
 	local semantics = resolve_semantic_stats(shot_node.modifiers)
-
 	return def.interpret_semantics(semantics)
 end
 
@@ -623,27 +693,27 @@ function update_shots()
 			local keep_alive = s.on_collision(s, inf)
 			if not keep_alive then
 				del(shots, s)
+				-- map/dirt particles
+				n_x,n_y=get_q_normal(ex_x, ex_y)
+				p_x=ex_x+n_x*2
+				p_y=ex_y+n_y*2
+				if inf.hitcol!=0 then
+					for k=1,s.stats.force do
+						add(map_parts, {
+							x=flr(p_x),
+							y=flr(p_y),
+							xvel=rnd(5.0) - 2.5,
+							yvel=rnd(5.0) - 2.5,
+							xprev=flr(inf.prevx),
+							yprev=flr(inf.prevy),
+							life=120,
+							col=hit_col
+						})
+					end
+				end
 				return
 			end
 
-		 -- map/dirt particles
-		 n_x,n_y=get_q_normal(ex_x, ex_y)
-		 p_x=ex_x+n_x*2
-		 p_y=ex_y+n_y*2
-			if hit_col!=0 then
-				for k=1,5 do
-					add(map_parts, {
-						x=flr(p_x),
-						y=flr(p_y),
-						xvel=rnd(5.0) - 2.5,
-						yvel=rnd(5.0) - 2.5,
-						xprev=flr(inf.prevx),
-						yprev=flr(inf.prevy),
-						life=120,
-						col=hit_col
-					})
-				end
-			end
 		end
 
 		// particles
@@ -682,27 +752,34 @@ function draw_shots()
 end
 
 function shoot(x, y, angle, vel, id, shot_node)
+	local dx = sin(angle)
+	local dy = cos(angle)
 	local stats = resolve_params(shot_node)
-	for i=1,stats.count do
-		local spread = -stats.spread * 0.5 + (i - 1) * (stats.spread / (stats.count - 1))
-		local dx = sin(angle+spread)
-		local dy = cos(angle+spread)
+	return shoot_w_stats(x,y,dx*vel,dy*vel,id,shot_node,stats)
+end
 
-		local s = {
-			x = x,
-			y = y,
-			xvel = dx*vel*stats.pow,
-			yvel = dy*vel*stats.pow,
-			id = id,
-			frame = 0,
-			stats = stats,
-			init = shot_types[shot_node.name].init,
-			update = shot_types[shot_node.name].update,
-			on_collision = shot_types[shot_node.name].on_collision
-		}
-		s.init(s)
-		add(shots, s)
-	end
+function shoot_w_stats_angle(x, y, angle, vel, id, shot_node, stats)
+	local dx = sin(angle)
+	local dy = cos(angle)
+	return shoot_w_stats(x,y,dx*vel,dy*vel,id,shot_node,stats)
+end
+
+function shoot_w_stats(x, y, xvel, yvel, id, shot_node, stats)
+	local s = {
+		x = x,
+		y = y,
+		xvel = xvel*stats.pow,
+		yvel = yvel*stats.pow,
+		id = id,
+		frame = 0,
+		stats = stats,
+		node = shot_node,
+		init = shot_types[shot_node.name].init,
+		update = shot_types[shot_node.name].update,
+		on_collision = shot_types[shot_node.name].on_collision
+	}
+	s.init(s)
+	add(shots, s)
 	return stats.cd
 end
 
@@ -967,7 +1044,8 @@ function checkcollow(x0, y0, x1, y1)
  prevy = y
 
  for x=x0,x1,xi do
-  if (mapget(flr(x),flr(y)) != 0 or hit_bounds(x,y)) then
+		local pixel = mapget(flr(x),flr(y))
+  if (pixel != 0 or hit_bounds(x,y)) then
    local d = sqrt(dx*dx+dy*dy)
   	dx /= d
   	dy /= d
@@ -976,7 +1054,8 @@ function checkcollow(x0, y0, x1, y1)
 	  	x=x,
 	  	y=y,
 	  	prevx=prevx,
-	  	prevy=prevy
+	  	prevy=prevy,
+				hitcol=pixel
 	  }
   end
   
@@ -991,13 +1070,15 @@ function checkcollow(x0, y0, x1, y1)
 		prevy = y
 	end
 	//check endpoint
-	if (mapget(flr(x1),flr(y1)) != 0 or hit_bounds(x1,y1)) then
+	pixel = mapget(flr(x1),flr(y1))
+	if (pixel != 0 or hit_bounds(x1,y1)) then
 		return {
 	 	didhit=true,
 	 	x=x1,
 	 	y=y1,
 	 	prevx=prevx,
-	 	prevy=prevy
+	 	prevy=prevy,
+			hitcol=pixel
 	 }
 	end
  
@@ -1015,7 +1096,8 @@ function checkcolhigh(x0, y0, x1, y1)
  prevy = y0
  
  for y=y0,y1,sgn(dy) do
-  if (mapget(flr(x),flr(y)) != 0 or hit_bounds(x,y)) then
+		local pixel = mapget(flr(x),flr(y))
+  if (pixel != 0 or hit_bounds(x,y)) then
   	local d = sqrt(dx*dx+dy*dy)
   	dx /= d
   	dy /= d
@@ -1024,7 +1106,8 @@ function checkcolhigh(x0, y0, x1, y1)
 	  	x=x,
 	  	y=y,
 	  	prevx=prevx,
-	  	prevy=prevy
+	  	prevy=prevy,
+				hitcol=pixel
 	  }
 	 end
 	 
@@ -1039,13 +1122,15 @@ function checkcolhigh(x0, y0, x1, y1)
 		prevy = y
 	end
 	//check endpoint
-	if (mapget(flr(x1),flr(y1)) != 0 or hit_bounds(x1,y1)) then
+	pixel = mapget(flr(x1),flr(y1)) 
+	if (pixel != 0 or hit_bounds(x1,y1)) then
 		return {
 	 	didhit=true,
 	 	x=x1,
 	 	y=y1,
 	 	prevx=prevx,
-	 	prevy=prevy
+	 	prevy=prevy,
+			hitcol=pixel
 	 }
 	end
 
@@ -1090,7 +1175,7 @@ function get_q_normal(x, y)
 	return quantized_x, quantized_y
 end
 -->8
-// map types and room loading
+-- map types and room loading
 room = {x=0,y=0}
 room_state={
 	completed=false,
@@ -1106,7 +1191,7 @@ target_t = 62
 enemy_t = 61
 
 function load_room(x,y)
- // clear
+ -- clear
 	del_table_contents(targets)
 	del_table_contents(dumb_enemies)
 	del_table_contents(shots)
@@ -1337,8 +1422,21 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
+-- current todo:
+--how do we ensure the correct
+---number of children when generating
+---the shot? right now nothing stops
+---us from supplying more children
+---than a shot can take...
 --implement more shot types and
---modifiers
+---modifiers
+--add shots and modifiers in
+---levels so you can pick them up
+--add picking up method
+---
+--ui showing what pickups you
+---have. keep them in order of
+---pickup time for now
 
 --improvements:
 ---rocket jumping feels a little
