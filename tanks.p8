@@ -216,8 +216,8 @@ function draw_player()
 	p.y += 6
 
 	-- turret
-	local tur_x = sin(p.t_angle)*4
-	local tur_y = cos(p.t_angle)*4
+	local tur_x = cos(p.t_angle)*4
+	local tur_y = sin(p.t_angle)*4
 	local t_end_x=p.x+tur_x
 	local t_end_y=p.y-3+tur_y
 	line(p.x, p.y-3, t_end_x, t_end_y, 7)
@@ -543,7 +543,6 @@ shot_types = {
 			explode(s,inf)
 		end
 	},
-
 	split = {
 		name = "split",
 		stats = {
@@ -570,7 +569,7 @@ shot_types = {
 			prev_yvel = s.yvel
 			basic_update(s)
 			if s.yvel > 0 and prev_yvel <= 0 then
-				local angle = vel_to_angle(s.xvel,s.yvel)
+				local angle = atan2(s.xvel,s.yvel)
 				local speed = sqrt(s.xvel*s.xvel + s.yvel*s.yvel)
 
 				for i=1,s.stats.count do
@@ -660,10 +659,6 @@ function resolve_params(shot_node)
 	local def = shot_types[shot_node.name]
 	local semantics = resolve_semantic_stats(shot_node.modifiers)
 	return def.interpret_semantics(semantics)
-end
-
-function vel_to_angle(xv, yv)
-	return atan2(xv, yv) - 0.25
 end
 
 function basic_update(s)
@@ -763,15 +758,15 @@ function draw_shots()
 end
 
 function shoot(x, y, angle, vel, id, shot_node)
-	local dx = sin(angle)
-	local dy = cos(angle)
+	local dx = cos(angle)
+	local dy = sin(angle)
 	local stats = resolve_params(shot_node)
 	return shoot_w_stats(x,y,dx*vel,dy*vel,id,shot_node,stats)
 end
 
 function shoot_w_stats_angle(x, y, angle, vel, id, shot_node, stats)
-	local dx = sin(angle)
-	local dy = cos(angle)
+	local dx = cos(angle)
+	local dy = sin(angle)
 	return shoot_w_stats(x,y,dx*vel,dy*vel,id,shot_node,stats)
 end
 
@@ -797,8 +792,8 @@ end
 function shoot_from_turret(x, y, angle, vel, id, shot_node)
 	vel *= 6
 	vel += 1
-	local dx = sin(angle)
-	local dy = cos(angle)
+	local dx = cos(angle)
+	local dy = sin(angle)
 	local ox = x+dx*4
 	local oy = y-3+dy*4
 	sfx(1)
@@ -1411,8 +1406,8 @@ function draw_enemies()
 		de.x += 4
 		de.y += 6
 
-		local tur_x = sin(de.t_angle)*4
-		local tur_y = cos(de.t_angle)*4
+		local tur_x = cos(de.t_angle)*4
+		local tur_y = sin(de.t_angle)*4
 		local t_end_x=de.x+tur_x
 		local t_end_y=de.y-3+tur_y
 		line(de.x, de.y-3, t_end_x, t_end_y, 7)
@@ -1433,8 +1428,13 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
--- currently working on: angle logic
---cleanup angle logic
+-- currently working on: knocked into walls bug
+--when knocked into a wall, it's
+---possible to slide through
+---terrain. instead, you should
+---bounce and/or stop at the edge
+---even if you do fall down, you
+---should stay inside the level
 --terrain still seems to flip if
 ---multiple shots hit the same area
 --how do we ensure the correct
