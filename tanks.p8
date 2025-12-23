@@ -26,8 +26,9 @@ function _init()
 		cd=60,
 		cur_cd=0,
 		shot = {
-			name = shot_types.split.name,
+			name = shot_types.basic.name,
 			modifiers = {
+				count = { stacks = 4 }
 			},
 			child = nil
 		}
@@ -493,7 +494,7 @@ shot_types = {
 			init_r=1,
 			force=7,
 			count=1,
-			spread=0.2,
+			spread=0.1,
 			pow=1,
 			cd=60
 		},
@@ -512,22 +513,17 @@ shot_types = {
 			local spread = s.stats.spread
 
 			for i=1,count do
-				local a = base_angle
-				local l_spread = spread
-
-				if count > 1 then
-					local t = (i - 1) / (count - 1)
-					l_spread = -spread * 0.5 + (i - 1) * (spread / (count - 1))
-				end
-
-				local xv = cos(a) * speed + l_spread
-				local yv = sin(a) * speed + l_spread
+				local vel = pow_spread(base_angle,speed,spread,count,i)
+				local xv = vel.x
+				local yv = vel.y
 				if i == 1 then
 					s.xvel = xv
 					s.yvel = yv
 				else
 					local stat_copy = copy_table(s.stats)
+					-- avoid changing new shots
 					stat_copy.count = 0
+					stat_copy.spread = 0
 					stat_copy.pow = 1
 
 					shoot_w_stats(s.x, s.y, xv, yv, s.id, s.node, stat_copy)
@@ -594,6 +590,21 @@ shot_types = {
 		end
 	}
 }
+
+function pow_spread(base_angle, base_speed, spread, total_count, cur_count)
+	local a = base_angle
+	local sp = spread
+
+	if total_count > 1 then
+		local t = (cur_count - 1) / (total_count - 1)
+		sp = -spread * 0.5 + (cur_count - 1) * (spread / (total_count - 1))
+	end
+
+	local powspread = 1 + sp
+	local xv = cos(a) * base_speed * powspread
+	local yv = sin(a) * base_speed * powspread
+	return {x=xv,y=yv}
+end
 
 function generate_shot(name, modifiers, children)
 	return {
@@ -1422,11 +1433,8 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
--- currently working on: shooting bugs
---when shooting multiple basic
----shots, the angles seem kind of
----wrong. easily visualized by
----setting shot count to 5
+-- currently working on: angle logic
+--cleanup angle logic
 --terrain still seems to flip if
 ---multiple shots hit the same area
 --how do we ensure the correct
