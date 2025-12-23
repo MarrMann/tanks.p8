@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
-// general
+-- general
 
 function _init()
 	entity_id = 0
@@ -12,7 +12,7 @@ function _init()
 		id = get_entity_id(),
 		x = 64,
 		y = 64,
-		xvel=0, // used when knocked
+		xvel=0, -- used when knocked
 		yvel=0,
 		move = false,
 		spr = 0,
@@ -28,7 +28,7 @@ function _init()
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {
-				count = { stacks = 4 }
+				count = { stacks = 9 }
 			},
 			child = nil
 		}
@@ -85,7 +85,7 @@ function approx_dist(dx,dy)
 end
 	
 -->8
-// player stuff
+-- player stuff
 
 function handle_input()
 	if gameover then
@@ -243,7 +243,7 @@ function draw_player()
 	end
 end
 -->8
-// world stuff
+-- world stuff
 
 // falling pixels array
 fallings = {}
@@ -800,6 +800,7 @@ function shoot_from_turret(x, y, angle, vel, id, shot_node)
 	return shoot(ox,oy,angle,vel,id,shot_node)
 end
 -->8
+-- explosions
 --exp = {
 --	x=0,
 --	y=0,
@@ -918,7 +919,7 @@ function tbl_contains(tbl,item)
 	return false
 end
 -->8
-// particles
+-- particles
 
 //particle = {
 //	x,
@@ -1026,7 +1027,7 @@ function draw_particles()
 	end
 end
 -->8
-// collisions
+-- collisions
 function checkcol(s)
 	local x0 = s.x
 	local y0 = s.y
@@ -1040,21 +1041,48 @@ function checkcol(s)
 end
 
 function checkcollow(x0, y0, x1, y1)
- dx = x1 - x0
- dy = y1 - y0
- yi = sgn(dy)
- xi = sgn(dx)
- d = (2 * dy * yi) - dx*xi
- y = y0
- prevx = x0
- prevy = y
+ local dx = x1 - x0
+ local dy = y1 - y0
+ local yi = sgn(dy)
+ local xi = sgn(dx)
+ local d = (2 * dy * yi) - dx*xi
+ local y = y0
+ local prevx = x0
+ local prevy = y
+	local has_bounds = room_state.bounds
 
  for x=x0,x1,xi do
-		local pixel = mapget(flr(x),flr(y))
-  if (pixel != 0 or hit_bounds(x,y)) then
+		local ix = flr(x)
+		local iy = flr(y)
+		local pixel = 0
+		local hit = false
+
+		-- 1. wall bounds
+		if has_bounds and (x > 127 or x < 0) then
+			hit = true
+			pixel = 1
+		-- 2. floor bounds
+		elseif has_bounds and iy > 123 then
+			hit = true
+			pixel = 0b0001111
+		-- 3. check map
+		elseif ix >= 0 and ix < 128 and iy > 0 and iy < 128 then
+			-- address: 0x8000 + (x + y * 128) / 2
+			-- (iy << 7) is y * 128, >>1 is /2
+			local val = @(0x8000 + ((ix + (iy << 7)) >> 1))
+
+			if (ix & 1) == 0 then
+				pixel = val & 0x0f
+			else
+				pixel = (val & 0xf0) >> 4
+			end
+
+			if (not(pixel == 0)) then hit = true end
+		end
+
+  if hit then
    local d = sqrt(dx*dx+dy*dy)
-  	dx /= d
-  	dy /= d
+			if (d > 0) then dx /= d dy /= d end
   	return {
 	  	didhit=true,
 	  	x=x,
@@ -1075,9 +1103,19 @@ function checkcollow(x0, y0, x1, y1)
 		prevx = x
 		prevy = y
 	end
-	//check endpoint
-	pixel = mapget(flr(x1),flr(y1))
-	if (pixel != 0 or hit_bounds(x1,y1)) then
+
+	-- check endpoint
+	local ix = flr(x1)
+	local iy = flr(y1)
+	local pixel = 0
+	if has_bounds and (x1 > 127 or x1 < 0) then pixel = 1
+	elseif has_bounds and iy > 123 then pixel = 15
+	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
+		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
+		if (ix & 1) == 0 then pixel = val & 0x0f
+		else pixel = (val & 0xf0) >> 4 end
+	end
+	if not(pixel == 0) then
 		return {
 	 	didhit=true,
 	 	x=x1,
@@ -1092,21 +1130,38 @@ function checkcollow(x0, y0, x1, y1)
 end
 
 function checkcolhigh(x0, y0, x1, y1)
- dx = x1 - x0
- dy = y1 - y0
- xi = sgn(dx)
- yi = sgn(dy)
- d = 2 * dx - dy*yi
- x = x0
- prevx = x
- prevy = y0
+ local dx = x1 - x0
+ local dy = y1 - y0
+ local xi = sgn(dx)
+ local yi = sgn(dy)
+ local d = 2 * dx - dy*yi
+ local x = x0
+ local prevx = x
+ local prevy = y0
+	local has_bounds = room_state.bounds
  
- for y=y0,y1,sgn(dy) do
-		local pixel = mapget(flr(x),flr(y))
-  if (pixel != 0 or hit_bounds(x,y)) then
+ for y=y0,y1,yi do
+		local ix = flr(x)
+		local iy = flr(y)
+		local pixel = 0
+		local hit = false
+
+		if has_bounds and (x > 127 or x < 0) then
+			hit = true
+			pixel = 1
+		elseif has_bounds and iy > 123 then
+			hit = true
+			pixel = 15
+		elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
+			local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
+			if (ix & 1) == 0 then pixel = val & 0x0f
+			else pixel = (val & 0xf0) >> 4 end
+			if not(pixel == 0) then hit = true end
+		end
+
+  if hit then
   	local d = sqrt(dx*dx+dy*dy)
-  	dx /= d
-  	dy /= d
+			if d > 0 then dx /= d dy /= d end
   	return {
 	  	didhit=true,
 	  	x=x,
@@ -1127,17 +1182,30 @@ function checkcolhigh(x0, y0, x1, y1)
 		prevx = x
 		prevy = y
 	end
-	//check endpoint
-	pixel = mapget(flr(x1),flr(y1)) 
-	if (pixel != 0 or hit_bounds(x1,y1)) then
+
+	-- check endpoint
+	local ix = flr(x)
+	local iy = flr(y)
+	local pixel = 0
+	local hit = false
+
+	if has_bounds and (x > 127 or x < 0) then pixel = 1
+	elseif has_bounds and iy > 123 then pixel = 15
+	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
+		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
+		if (ix & 1) == 0 then pixel = val & 0x0f
+		else pixel = (val & 0xf0) >> 4 end
+	end
+
+	if not(pixel == 0) then
 		return {
-	 	didhit=true,
-	 	x=x1,
-	 	y=y1,
-	 	prevx=prevx,
-	 	prevy=prevy,
+			didhit=true,
+			x=x1,
+			y=y1,
+			prevx=prevx,
+			prevy=prevy,
 			hitcol=pixel
-	 }
+		}
 	end
 
 	return {didhit=false}
