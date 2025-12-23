@@ -28,7 +28,6 @@ function _init()
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {
-				count = { stacks = 9 }
 			},
 			child = nil
 		}
@@ -967,14 +966,12 @@ function update_particles()
 		local ent=knocked_entities[i]
 		local inf=checkcol(ent)
 
-		if inf.didhit then
+		if inf.didhit and inf.hitcol != 100 then
 			local hit_x=flr(inf.x)
 			local hit_y=flr(inf.y)
 			local n_x, n_y=get_q_normal(hit_x,hit_y)
-			ent_x=hit_x+n_x
-			ent_y=hit_y+n_y
-			ent.x=ent_x
-			ent.y=ent_y
+			ent.x=inf.prevx
+			ent.y=inf.prevy
 			ent.xvel=0
 			ent.yvel=0
 			ent.is_knocked=false
@@ -1056,7 +1053,7 @@ function checkcollow(x0, y0, x1, y1)
 		-- 1. wall bounds
 		if has_bounds and (x > 127 or x < 0) then
 			hit = true
-			pixel = 1
+			pixel = 100
 		-- 2. floor bounds
 		elseif has_bounds and iy > 123 then
 			hit = true
@@ -1104,7 +1101,7 @@ function checkcollow(x0, y0, x1, y1)
 	local ix = flr(x1)
 	local iy = flr(y1)
 	local pixel = 0
-	if has_bounds and (x1 > 127 or x1 < 0) then pixel = 1
+	if has_bounds and (x1 > 127 or x1 < 0) then pixel = 100
 	elseif has_bounds and iy > 123 then pixel = 15
 	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
 		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
@@ -1144,7 +1141,7 @@ function checkcolhigh(x0, y0, x1, y1)
 
 		if has_bounds and (x > 127 or x < 0) then
 			hit = true
-			pixel = 1
+			pixel = 100
 		elseif has_bounds and iy > 123 then
 			hit = true
 			pixel = 15
@@ -1185,7 +1182,7 @@ function checkcolhigh(x0, y0, x1, y1)
 	local pixel = 0
 	local hit = false
 
-	if has_bounds and (x > 127 or x < 0) then pixel = 1
+	if has_bounds and (x > 127 or x < 0) then pixel = 100
 	elseif has_bounds and iy > 123 then pixel = 15
 	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
 		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
@@ -1360,7 +1357,7 @@ function remove_target(t)
 	check_room_state()
 end
 
-// hit_text:x,y,col,life,text
+-- hit_text:x,y,col,life,text
 function draw_types()
 	for ht in all(hit_texts) do
 		print(ht.text,ht.x,ht.y,ht.col)
@@ -1436,7 +1433,7 @@ function circle_rect_col(cx,cy,r,rx,ry)
 end
 
 -->8
-// enemies
+-- enemies
 function update_enemies()
 	for de in all(dumb_enemies) do
 		if de.cur_cd<=0 then
@@ -1478,7 +1475,7 @@ function draw_enemies()
 	end
 end
 -->8
---todo
+-- todo
 --performance:
 ---could consider batch removal of
 ---dirt in explosions, e.g.
@@ -1492,13 +1489,7 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
--- currently working on: knocked into walls bug
---when knocked into a wall, it's
----possible to slide through
----terrain. instead, you should
----bounce and/or stop at the edge
----even if you do fall down, you
----should stay inside the level
+-- currently working on: terrain flipping
 --terrain still seems to flip if
 ---multiple shots hit the same area
 --how do we ensure the correct
