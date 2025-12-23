@@ -181,14 +181,14 @@ function get_ground(x, y)
 	return y
 end
 
-// keep for testing when needed
+-- keep for testing when needed
 function draw_dbg()
 end
 
 function update_player()
 	if (gameover) return
 
-	// gravity
+	-- gravity
 	if not p.move and not p.is_knocked then
 		local grnd = get_ground(flr(p.x),flr(p.y))
 		if grnd > p.y then
@@ -207,7 +207,7 @@ function draw_player()
 	draw_dbg()
 	if (gameover) return
 	
-	// player sprite
+	-- player sprite
 	if p.move then p.spr = (t%4)/2 end
 	p.x -= 4
 	p.y -= 6
@@ -245,7 +245,7 @@ end
 -->8
 -- world stuff
 
-// falling pixels array
+-- falling pixels array
 fallings = {}
 to_del = {}
 
@@ -307,29 +307,25 @@ function mapget(x, y)
 	if (room_state.bounds and y > 123) return 0b0001111
 
 	if (y < 0 or x < 0 or x > 127 or y > 127) return 0
-	local offset = (x + y*128) / 2
-	local memloc = 0x8000 + flr(offset)
-	if x % 2 == 0 then
-		memloc = @memloc	& 0b00001111
+	local memloc = (0x8000 + ((x + (y << 7)) >> 1))
+	if x & 1 == 0 then
+		memloc = @memloc	& 0x0f
 	else
-		memloc = (@memloc & 0b11110000) >> 4
+		memloc = (@memloc & 0xf0) >> 4
 	end
 	return memloc
 end
 
 function mapset(x, y, col)
 	if (y < 0 or x < 0 or x > 127 or y > 127) return
-	local offset = (x + y*128) / 2
-	local memloc = 0x8000 + flr(offset)
+	local memloc = (0x8000 + ((x + (y << 7)) >> 1))
 	local value = @memloc
 	if x % 2 == 0 then
 		mask = 0b11110000
 		value = (value & mask) | col
-		// add color
 	else
 		mask = 0b00001111
 		value = (value & mask) | (col << 4)
-		// add color
 	end
 	poke(memloc, value)
 end
