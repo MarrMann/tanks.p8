@@ -28,6 +28,7 @@ function _init()
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {
+				count = { stacks = 2 }
 			},
 			child = nil
 		}
@@ -260,15 +261,15 @@ end
 
 function update_world()
 	for i=#fallings,1,-1 do
-		// make column fall
+		-- make column fall
 		local p=fallings[i]
 		fallcolumn(p.x, p.y)
 		
-		// update column for next fall
+		-- update column for next fall
 		p.y += 1
 		fallings[i]=p
 		
-		// column hit ground
+		-- column hit ground
 		if mapget(p.x,p.y+1) != 0 or p.y > 126 then
 			del(fallings, p)
 		end
@@ -329,19 +330,55 @@ function mapset(x, y, col)
 	poke(memloc, value)
 end
 
+function clear_line(y, x0, x1)
+	--bounds
+	if y < 0 or y > 127 then return end
+	x0 = mid(0, x0, 127)
+	x1 = mid(0, x1, 127)
+	
+	--order check
+	if x1	< x0 then
+		local tmp = x0
+		x0 = x1
+		x1 = tmp
+	end
+
+	--memory location
+	local row_addr = 0x8000 + (y << 6) --64 bytes per row, 128 pixels
+
+	--start byte
+	if (x0 & 1) == 1 then -- right side is 
+		local addr = row_addr + (x0 >> 1)
+		poke(addr, @addr & 0x0f)
+		x0 += 1
+	end
+	
+	--end byte
+	if (x1 & 1 == 0) then
+		local addr = row_addr + (x1 >> 1)
+		poke(addr, @addr	& 0xf0)
+		x1 -= 1
+	end
+
+	--middle
+	if x0 <= x1	then
+		local start_addr = row_addr + (x0 >> 1)
+		local bytecount	= (x1 - x0 + 1) >> 1
+		memset(start_addr, 0, bytecount)
+	end
+end
+
 function draw_circ(o_x, o_y, x, y, fall)
 	y1 = o_y+y
 	y2 = o_y-y
 	y3 = o_y+x
 	y4 = o_y-x
-	for i = o_x-x,o_x+x do
-		mapset(i, y1, 0)
-		mapset(i, y2, 0)
-	end
-	for i = o_x-y,o_x+y do
-		mapset(i, y3, 0)
-		mapset(i, y4, 0)
-	end
+
+	clear_line(y1, o_x - x, o_x + x)
+	clear_line(y2, o_x - x, o_x + x)
+	clear_line(y3, o_x - y, o_x + y)
+	clear_line(y4, o_x - y, o_x + y)
+
 	if fall then
 		local tmp_fall={}
 		if mapget(o_x+x, y2 - 1) != 0 then
@@ -1489,7 +1526,7 @@ end
 ---limit jumps to 1-3 per room
 ---upgrades can affect jumps
 
--- currently working on: terrain flipping
+-- currently working on: batch removal of dirt
 --terrain still seems to flip if
 ---multiple shots hit the same area
 --how do we ensure the correct
@@ -1499,15 +1536,20 @@ end
 ---than a shot can take...
 --implement more shot types and
 ---modifiers
+
+--pickups:
 --add shots and modifiers in
 ---levels so you can pick them up
 --add picking up method
----
 --ui showing what pickups you
 ---have. keep them in order of
 ---pickup time for now
 
 --improvements:
+---tanks should have a collision
+---box or circle when being hit
+---by explosions, rather than a
+---single pixel
 ---rocket jumping feels a little
 ----inconsistent, it's either a
 ----lot of velocity, or none at
