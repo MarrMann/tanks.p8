@@ -11,24 +11,25 @@ function _init()
 	p={
 		id = get_entity_id(),
 		x = 64,
-		y = 64,
+		y = get_ground(64,64),
 		xvel=0, -- used when knocked
 		yvel=0,
 		move = false,
 		spr = 0,
 		t_angle = 0,
 		pow = 0.5,
-		is_grounded = false,
+		is_grounded = true,
 		health=100,
 		max_health=100,
 		health_regen=10,
 		is_knocked=false,
 		cd=60,
 		cur_cd=0,
+		jumps = 3,
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {
-				count = { stacks = 2 }
+				count = { stacks = 9 }
 			},
 			child = nil
 		}
@@ -101,7 +102,7 @@ function handle_input()
 	local fl_y = flr(p.y)
 	p.move = false
 
-	// movement
+	-- movement
 	if not p.is_knocked then
 		if btn(⬅️) and (room_state.bounds==false or p.x > 1) then
 			local target_x = p.x-1
@@ -120,6 +121,19 @@ function handle_input()
 				p.x += cos(angle) * 0.5
 				p.y -= sin(angle) * 0.5
 			end
+		end
+	end
+
+	-- jumping
+	if btnp(➡️,1) then
+			if (p.jumps > 0 and p.is_grounded) then
+			local vel = 4
+			p.xvel = vel * cos(p.t_angle)
+			p.yvel = vel	* sin(p.t_angle)
+			p.is_grounded = false
+			add(knocked_entities,p)
+			p.jumps	-= 1
+			sfx(1)
 		end
 	end
 
@@ -347,14 +361,14 @@ function clear_line(y, x0, x1)
 	local row_addr = 0x8000 + (y << 6) --64 bytes per row, 128 pixels
 
 	--start byte
-	if (x0 & 1) == 1 then -- right side is 
-		local addr = row_addr + (x0 >> 1)
+	if (x0 & 1) == 1 then -- x0 is odd, clear right side and increment
+		local addr = row_addr + (x0 >> 1) -- >> 1 is the same as / 2
 		poke(addr, @addr & 0x0f)
 		x0 += 1
 	end
 	
 	--end byte
-	if (x1 & 1 == 0) then
+	if (x1 & 1 == 0) then -- x1 is even, clear left side and decrement
 		local addr = row_addr + (x1 >> 1)
 		poke(addr, @addr	& 0xf0)
 		x1 -= 1
@@ -1303,7 +1317,9 @@ function load_room(x,y)
 	del_table_contents(parts)
 	del_table_contents(exps)
 
-	// room wrapping
+	p.jumps = 3
+
+	-- room wrapping
 	if x < 0 then
 		x = 15
 	elseif x > 15 then
@@ -1355,7 +1371,7 @@ function load_room(x,y)
 	end
 
 	init_world()
-	check_room_state() //could load room with no enemies
+	check_room_state() --could load room with no enemies
 	fix_player_spawn()
 end
 
@@ -1520,13 +1536,7 @@ end
 ----get pixels for removal back
 ----2. batch remove all pixels
 
---jump:
----hold d and x to jump in the
----direction we're aiming
----limit jumps to 1-3 per room
----upgrades can affect jumps
-
--- currently working on: batch removal of dirt
+-- currently working on: tank x explosion collision
 --terrain still seems to flip if
 ---multiple shots hit the same area
 --how do we ensure the correct
@@ -1573,6 +1583,7 @@ function draw_ui()
 	end
 	draw_bar(p.cur_cd,p.cd,p.x,p.y-6,10)
 	draw_bar(p.health,p.max_health,p.x,p.y-7,8)
+	print("jumps:"..tostr(p.jumps), 0, 123, 7)
 end
 
 function draw_bar(cur_t,max_t,x,y,col)
