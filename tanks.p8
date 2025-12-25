@@ -29,7 +29,6 @@ function _init()
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {
-				count = { stacks = 9 }
 			},
 			child = nil
 		}
@@ -218,7 +217,6 @@ function update_player()
 end
 
 function draw_player()
-	draw_dbg()
 	if (gameover) return
 	
 	-- player sprite
@@ -255,6 +253,7 @@ function draw_player()
 	 local dest_y = lerp(pow_oy,cross_y,p.pow)
 	 line(pow_ox,pow_oy,dest_x,dest_y,pow_col)
 	end
+	draw_dbg()
 end
 -->8
 -- world stuff
@@ -869,7 +868,7 @@ function update_explosions()
 end
 
 function handle_exp_hits(exp)
-	// player
+	-- player
 	if not tbl_contains(exp.hit_ids,p.id) then
 		if handle_exp_hit(exp,p) then
 			local dmg=calc_dmg(exp,p.id)
@@ -937,8 +936,8 @@ function calc_dmg(exp, id)
 end
 
 function handle_exp_hit(exp,target)
-	local dist = approx_dist(abs(target.x-exp.x),abs(target.y-exp.y))
-	if dist <= exp.cur_r then
+	local hit = cccol(exp.x, exp.y, exp.cur_r, target.x-0.5, target.y - 1, 3)
+	if hit.didhit then
 		add(exp.hit_ids, target.id)
 		return true
 	end
@@ -1072,6 +1071,30 @@ function draw_particles()
 end
 -->8
 -- collisions
+function cccol(x0, y0, r0, x1, y1, r1)
+	local dx = x1 - x0
+	local dy = y1 - y0
+	local dist_sq = dx * dx + dy * dy
+	local radii_sum = r0 + r1
+	local didhit = dist_sq <= radii_sum * radii_sum
+
+	if didhit then
+		local dist = sqrt(dist_sq)
+		if dist > 0 then
+			dx /= dist
+			dy /= dist
+		end
+		return {
+			didhit = true,
+			x = x0 + dx * r0,
+			y = y0 + dy * r0,
+			normal_x = dx,
+			normal_y = dy
+		}
+	end
+	return {didhit = false}
+end
+
 function checkcol(s)
 	local x0 = s.x
 	local y0 = s.y
@@ -1529,6 +1552,8 @@ function draw_enemies()
 end
 -->8
 -- todo
+-- currently working on: finalize pickup/shot tree logic
+
 --performance:
 ---could consider batch removal of
 ---dirt in explosions, e.g.
@@ -1536,9 +1561,11 @@ end
 ----get pixels for removal back
 ----2. batch remove all pixels
 
--- currently working on: tank x explosion collision
+--bugs:
 --terrain still seems to flip if
 ---multiple shots hit the same area
+
+--improvements:
 --how do we ensure the correct
 ---number of children when generating
 ---the shot? right now nothing stops
@@ -1554,16 +1581,6 @@ end
 --ui showing what pickups you
 ---have. keep them in order of
 ---pickup time for now
-
---improvements:
----tanks should have a collision
----box or circle when being hit
----by explosions, rather than a
----single pixel
----rocket jumping feels a little
-----inconsistent, it's either a
-----lot of velocity, or none at
-----all
 
 --test:
 ---test all modifiers
