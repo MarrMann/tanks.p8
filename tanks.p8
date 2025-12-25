@@ -29,6 +29,7 @@ function _init()
 		shot = {
 			name = shot_types.basic.name,
 			modifiers = {
+				size = { stacks = 6 }
 			},
 			child = nil
 		}
@@ -411,9 +412,9 @@ function draw_circ(o_x, o_y, x, y, fall)
 end
 
 function explode_brem(o_x, o_y, r, fall)
-	x = 0
-	y = r
-	d = 3 - 2 * r
+	local x = 0
+	local y = r
+	local d = 3 - 2 * r
 	-- split logic between falling and not falling
 	if fall then
 		-- save possible falling pixels
@@ -445,20 +446,6 @@ function explode_brem(o_x, o_y, r, fall)
 		end
 		for k,v in pairs(to_add) do
 			add(fallings, v)
-		end
-	-- not fallings
-	else
-		draw_circ(o_x, o_y, x, y, fall)
-		while y >= x do
-			if d > 0 then
-				y -= 1
-				d = d + 4 * (x - y) + 10
-			else
-				d = d + 4 * x + 6
-			end
-			
-			x += 1
-			draw_circ(o_x, o_y, x, y, fall)
 		end
 	end
 end
@@ -861,7 +848,7 @@ exps={}
 function update_explosions()
 	for i=#exps,1,-1 do
 		local exp = exps[i]
-		eq = exp.cur_r == exp.r
+		local eq = exp.cur_r == exp.r
 		explode_brem(exp.x, exp.y, exp.cur_r, eq)
 		handle_exp_hits(exp)
 	end
@@ -891,7 +878,7 @@ function handle_exp_hits(exp)
 		end
 	end
 
-	// enemies
+	-- enemies
 	for e in all(dumb_enemies) do
 		if not tbl_contains(exp.hit_ids,e.id) then
 			if handle_exp_hit(exp,e) then
@@ -947,6 +934,7 @@ end
 function draw_explosions()
 	for i=#exps,1,-1 do
 		local exp = exps[i]
+		circfill(exp.x, exp.y, exp.cur_r, 0)
 		circ(exp.x, exp.y, exp.cur_r, 8)
 		exp.cur_r += 1
 		if exp.cur_r > exp.r then
@@ -1552,7 +1540,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: finalize pickup/shot tree logic
+-- currently working on: ensure that map particles spawn in the normal direction to avoid falling issues
 
 --performance:
 ---could consider batch removal of
