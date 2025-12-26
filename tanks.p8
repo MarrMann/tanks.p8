@@ -1541,6 +1541,10 @@ end
 -->8
 -- todo
 -- currently working on: ensure that map particles spawn in the normal direction to avoid falling issues
+-- to try:
+--- add particles after explosion end
+--- shoot particles in normal direction
+--- decide which is best
 
 --performance:
 ---could consider batch removal of
