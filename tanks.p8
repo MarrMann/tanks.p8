@@ -732,16 +732,20 @@ function update_shots()
 			if not keep_alive then
 				del(shots, s)
 				-- map/dirt particles
-				n_x,n_y=get_q_normal(ex_x, ex_y)
-				p_x=ex_x+n_x*2
-				p_y=ex_y+n_y*2
 				if inf.hitcol!=0 then
+					n_x,n_y=get_q_normal(ex_x, ex_y)
+					local p_x=ex_x+n_x
+					local p_y=ex_y+n_y
+					local base_angle=atan2(n_x,n_y)
+
 					for k=1,s.stats.force do
+						local ang = base_angle + rnd(0.5)-0.25
+						local vel = rnd(s.stats.r * 0.25)+s.stats.r * 0.15
 						add(map_parts, {
 							x=flr(p_x),
 							y=flr(p_y),
-							xvel=rnd(5.0) - 2.5,
-							yvel=rnd(5.0) - 2.5,
+							xvel=cos(ang)*vel,
+							yvel=sin(ang)*vel,
 							xprev=flr(inf.prevx),
 							yprev=flr(inf.prevy),
 							life=120,
@@ -754,7 +758,7 @@ function update_shots()
 
 		end
 
-		// particles
+		-- particles
 		for j=1,2 do
 			add(parts, {
 				x=s.x,
@@ -1512,7 +1516,7 @@ function update_enemies()
 			de.y+=1
 		end
 
-		// mirror based on player pos
+		-- mirror based on player pos
 		if p.x-de.x<0 and de.target_angle>0.5 then
 			de.target_angle-=(de.target_angle-0.5)*2
 		elseif p.x-de.x>0 and de.target_angle<0.5 then
