@@ -732,7 +732,7 @@ function update_shots()
 			if not keep_alive then
 				del(shots, s)
 				-- map/dirt particles
-				if inf.hitcol!=0 then
+				if inf.hitcol !=0 then
 					n_x,n_y=get_q_normal(ex_x, ex_y)
 					local p_x=ex_x+n_x
 					local p_y=ex_y+n_y
@@ -749,7 +749,7 @@ function update_shots()
 							xprev=flr(inf.prevx),
 							yprev=flr(inf.prevy),
 							life=120,
-							col=hit_col
+							col=inf.hitcol
 						})
 					end
 				end
@@ -958,16 +958,16 @@ end
 -->8
 -- particles
 
-//particle = {
-//	x,
-//	y,
-//	xvel,
-//	yvel,
-// xprev,
-// yprev,
-//	life,
-//	col
-//}
+--particle = {
+--	x,
+--	y,
+--	xvel,
+--	yvel,
+-- xprev,
+-- yprev,
+--	life,
+--	col
+--
 
 parts = {}
 map_parts = {}
@@ -985,13 +985,15 @@ function update_particles()
 		
 		local inf = checkcol(mp)
 		if inf.didhit then
-			hit_x=flr(inf.x)
-			hit_y=flr(inf.y)
-			n_x,n_y=get_q_normal(hit_x,hit_y)
-			mp_x=hit_x+n_x
-			mp_y=hit_y+n_y
+			local hit_x=flr(inf.x)
+			local hit_y=flr(inf.y)
+			local n_x,n_y=get_q_normal(hit_x,hit_y)
+			local mp_x=hit_x+n_x
+			local mp_y=hit_y+n_y
 			mapset(mp_x, mp_y, mp.col)
-			add(fallings, {x=mp_x, y=mp_y})
+			if mapget(mp_x, mp_y + 1) == 0 then
+				add(fallings, {x=mp_x, y=mp_y})
+			end
 		end
 		
 		mp.x += mp.xvel
@@ -1119,7 +1121,7 @@ function checkcollow(x0, y0, x1, y1)
 		-- 1. wall bounds
 		if has_bounds and (x > 127 or x < 0) then
 			hit = true
-			pixel = 100
+			pixel = 8
 		-- 2. floor bounds
 		elseif has_bounds and iy > 123 then
 			hit = true
@@ -1167,7 +1169,7 @@ function checkcollow(x0, y0, x1, y1)
 	local ix = flr(x1)
 	local iy = flr(y1)
 	local pixel = 0
-	if has_bounds and (x1 > 127 or x1 < 0) then pixel = 100
+	if has_bounds and (x1 > 127 or x1 < 0) then pixel = 8
 	elseif has_bounds and iy > 123 then pixel = 15
 	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
 		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
@@ -1207,7 +1209,7 @@ function checkcolhigh(x0, y0, x1, y1)
 
 		if has_bounds and (x > 127 or x < 0) then
 			hit = true
-			pixel = 100
+			pixel = 8
 		elseif has_bounds and iy > 123 then
 			hit = true
 			pixel = 15
@@ -1248,7 +1250,7 @@ function checkcolhigh(x0, y0, x1, y1)
 	local pixel = 0
 	local hit = false
 
-	if has_bounds and (x > 127 or x < 0) then pixel = 100
+	if has_bounds and (x > 127 or x < 0) then pixel = 8
 	elseif has_bounds and iy > 123 then pixel = 15
 	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
 		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
