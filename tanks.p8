@@ -16,7 +16,7 @@ function _init()
 		yvel=0,
 		move = false,
 		spr = 0,
-		t_angle = 0,
+		t_angle = 0.125,
 		pow = 0.5,
 		is_grounded = true,
 		health=100,
@@ -104,7 +104,7 @@ function handle_input()
 
 	-- movement
 	if not p.is_knocked then
-		if btn(⬅️) and (room_state.bounds==false or p.x > 1) then
+		if btn(⬅️) and (room_state.bounds==false or p.x > 0) then
 			local target_x = p.x-1
 			local target_y = get_ground(flr(target_x),fl_y)
 			local angle = atan2(-1,(fl_y-target_y))
@@ -1013,13 +1013,12 @@ function update_particles()
 		if inf.didhit and not inf.oob then
 			local hit_x=flr(inf.x)
 			local hit_y=flr(inf.y)
-			local n_x, n_y=get_q_normal(hit_x,hit_y)
 			ent.x=inf.prevx
 			ent.y=inf.prevy
 			ent.xvel=0
 			ent.yvel=0
 			ent.is_knocked=false
-			ent.is_grounded=true
+			ent.is_grounded=mapget(ent.x,ent.y+1) == 0
 			del(knocked_entities, ent)
 		else
 			ent.x += ent.xvel
@@ -1038,7 +1037,7 @@ end
 
 function get_knockback(ent, exp)
 	local raw_dir_x=ent.x-exp.x
-	local raw_dir_y=ent.y-(exp.y+2) // better sim of center of mass
+	local raw_dir_y=ent.y-(exp.y+2) -- better sim of center of mass
 	local length=sqrt(raw_dir_x^2+raw_dir_y^2)
 	local norm_x=raw_dir_x/length
 	local norm_y=raw_dir_y/length
@@ -1562,7 +1561,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: tanks stuck in ceiling
+-- currently working on: pickup ui
 
 --performance:
 ---could consider batch removal of
