@@ -733,7 +733,7 @@ function update_shots()
 				del(shots, s)
 				-- map/dirt particles
 				if inf.hitcol !=0 then
-					n_x,n_y=get_q_normal(ex_x, ex_y)
+					local n_x,n_y=get_q_normal(ex_x, ex_y)
 					local p_x=ex_x+n_x
 					local p_y=ex_y+n_y
 					local base_angle=atan2(n_x,n_y)
@@ -1010,7 +1010,7 @@ function update_particles()
 		local ent=knocked_entities[i]
 		local inf=checkcol(ent)
 
-		if inf.didhit and inf.hitcol != 100 then
+		if inf.didhit and not inf.oob then
 			local hit_x=flr(inf.x)
 			local hit_y=flr(inf.y)
 			local n_x, n_y=get_q_normal(hit_x,hit_y)
@@ -1117,15 +1117,17 @@ function checkcollow(x0, y0, x1, y1)
 		local iy = flr(y)
 		local pixel = 0
 		local hit = false
+		local oob = false
 
 		-- 1. wall bounds
-		if has_bounds and (x > 127 or x < 0) then
+		if has_bounds and (x >= 128 or x < 0) then
 			hit = true
-			pixel = 8
+			pixel = 15
+			oob = true
 		-- 2. floor bounds
 		elseif has_bounds and iy > 123 then
 			hit = true
-			pixel = 0b0001111
+			pixel = 15
 		-- 3. check map
 		elseif ix >= 0 and ix < 128 and iy > 0 and iy < 128 then
 			-- address: 0x8000 + (x + y * 128) / 2
@@ -1146,6 +1148,7 @@ function checkcollow(x0, y0, x1, y1)
 			if (d > 0) then dx /= d dy /= d end
   	return {
 	  	didhit=true,
+				oob=oob,
 	  	x=x,
 	  	y=y,
 	  	prevx=prevx,
@@ -1169,7 +1172,11 @@ function checkcollow(x0, y0, x1, y1)
 	local ix = flr(x1)
 	local iy = flr(y1)
 	local pixel = 0
-	if has_bounds and (x1 > 127 or x1 < 0) then pixel = 8
+	local oob = false
+
+	if has_bounds and (x1 >= 128 or x1 < 0) then
+		pixel = 15
+		oob = true
 	elseif has_bounds and iy > 123 then pixel = 15
 	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
 		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
@@ -1179,6 +1186,7 @@ function checkcollow(x0, y0, x1, y1)
 	if not(pixel == 0) then
 		return {
 	 	didhit=true,
+			oob = oob,
 	 	x=x1,
 	 	y=y1,
 	 	prevx=prevx,
@@ -1205,11 +1213,13 @@ function checkcolhigh(x0, y0, x1, y1)
 		local ix = flr(x)
 		local iy = flr(y)
 		local pixel = 0
+		local oob = false
 		local hit = false
 
-		if has_bounds and (x > 127 or x < 0) then
+		if has_bounds and (x >= 128 or x < 0) then
 			hit = true
-			pixel = 8
+			pixel = 15
+			oob = true
 		elseif has_bounds and iy > 123 then
 			hit = true
 			pixel = 15
@@ -1225,6 +1235,7 @@ function checkcolhigh(x0, y0, x1, y1)
 			if d > 0 then dx /= d dy /= d end
   	return {
 	  	didhit=true,
+				oob = oob,
 	  	x=x,
 	  	y=y,
 	  	prevx=prevx,
@@ -1248,9 +1259,11 @@ function checkcolhigh(x0, y0, x1, y1)
 	local ix = flr(x)
 	local iy = flr(y)
 	local pixel = 0
-	local hit = false
+	local oob = false
 
-	if has_bounds and (x > 127 or x < 0) then pixel = 8
+	if has_bounds and (x >= 128 or x < 0) then
+		pixel = 15
+		oob = true
 	elseif has_bounds and iy > 123 then pixel = 15
 	elseif ix >= 0 and ix < 128 and iy >= 0 and iy < 128 then
 		local val = @(0x8000 + ((ix + (iy<<7)) >> 1))
@@ -1261,6 +1274,7 @@ function checkcolhigh(x0, y0, x1, y1)
 	if not(pixel == 0) then
 		return {
 			didhit=true,
+			oob = oob,
 			x=x1,
 			y=y1,
 			prevx=prevx,
@@ -1304,6 +1318,8 @@ end
 
 -- get quantized normal at (x, y)
 function get_q_normal(x, y)
+	if x > 127 then return -1, 0 end
+	if x < 0 then return 1, 0 end
 	local normal_x, normal_y = get_normal(x, y)
 	local quantized_x = flr(normal_x + 0.5) -- round to nearest integer
 	local quantized_y = flr(normal_y + 0.5) -- round to nearest integer
@@ -1546,11 +1562,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: ensure that map particles spawn in the normal direction to avoid falling issues
--- to try:
---- add particles after explosion end
---- shoot particles in normal direction
---- decide which is best
+-- currently working on: tanks stuck in ceiling
 
 --performance:
 ---could consider batch removal of
@@ -1560,6 +1572,7 @@ end
 ----2. batch remove all pixels
 
 --bugs:
+--tanks can get stuck in ceiling when flying upwards
 --terrain still seems to flip if
 ---multiple shots hit the same area
 
