@@ -1637,6 +1637,9 @@ function draw_ui()
 
 		for id,mod in pairs(shot.modifiers) do
 			spr(modifiers[id].spr, drawx, 0)
+			if mod.stacks > 1 then
+				print(tostr(mod.stacks), drawx+2, 8, 7)
+			end
 			drawx += 8
 		end
 
