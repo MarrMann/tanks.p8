@@ -76,7 +76,7 @@ function lerp(a,b,t)
  return result
 end
 
-//https://www.lexaloffle.com/bbs/?tid=36059
+--https://www.lexaloffle.com/bbs/?tid=36059
 function approx_dist(dx,dy)
  local maskx,masky=dx>>31,dy>>31
  local a0,b0=(dx+maskx)^^maskx,(dy+masky)^^masky
@@ -736,7 +736,7 @@ function update_shots()
 				inf.prevy = s.yprev
 			end
 
-			local keep_alive = s.on_collision(s, inf)
+			local keep_alive = shot_types[s.node.name].on_collision(s, inf)
 			if not keep_alive then
 				del(shots, s)
 				-- map/dirt particles
@@ -781,7 +781,7 @@ function update_shots()
 		end
 
 		-- update
-		keep_alive = s.update(s)
+		keep_alive = shot_types[s.node.name].update(s)
 		if keep_alive == false or s.y > 128 or s.x > 128 or s.x < 0 then
 			del(shots, s)
 		end
@@ -824,11 +824,8 @@ function shoot_w_stats(x, y, xvel, yvel, id, shot_node, stats)
 		frame = 0,
 		stats = stats,
 		node = shot_node,
-		init = shot_types[shot_node.name].init,
-		update = shot_types[shot_node.name].update,
-		on_collision = shot_types[shot_node.name].on_collision
 	}
-	s.init(s)
+	shot_types[shot_node.name].init(s)
 	add(shots, s)
 	return stats.cd
 end
@@ -1575,7 +1572,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: shot application
+-- currently working on: shot application (balancing, e.g. splits, cooldown, and so on)
 
 --performance:
 ---shots could get selected and
