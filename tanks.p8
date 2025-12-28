@@ -27,12 +27,17 @@ function _init()
 		cur_cd=0,
 		jumps = 3,
 		shot = {
-			name = shot_types.basic.name,
-			spr = shot_types.basic.spr,
+			name = shot_types.split.name,
+			spr = shot_types.split.spr,
 			modifiers = {
-				size = { stacks = 6, spr = modifiers.size.spr }
 			},
-			child = nil
+			child = {
+				name = shot_types.split.name,
+				spr = shot_types.split.spr,
+				modifiers = {
+				},
+				child = nil
+			}
 		}
 	}
 	load_room(0,0)
@@ -139,7 +144,7 @@ function handle_input()
 	end
 
 	-- shooting
-	if btnp(🅾️) and p.cur_cd <= 0 then --z
+	if btn(🅾️) and p.cur_cd <= 0 then --z
 		local cd = shoot_from_turret(p.x,p.y,p.t_angle,p.pow,p.id,p.shot)
 		p.cur_cd = cd
 		p.cd = cd
@@ -537,9 +542,6 @@ shot_types = {
 			pow=1,
 			cd=60
 		},
-		get_child_count = function(s,m)
-			return 0
-		end,
 		init = function(s)
 			if s.stats == nil then
 				return
@@ -593,32 +595,48 @@ shot_types = {
 			count = 3,
 			spread = 1.2,
 			pow = 1,
-			cd = 60
+			cd = 75
 		},
-		get_child_count = function(s, mods)
-			local sem = resolve_semantic_stats(mods)
-			return sem.count + shot_types.split.stats.count
-		end,
 		init = function(s) end,
 		interpret_semantics = function(sem)
 			local base = shot_types.split.stats
 			local stats = copy_table(base)
 			return apply_sem_basic(sem, stats)
 		end,
+		finalize_stats	= function(node, stats)
+			local child = node.child
+			if child == nil then
+				child = generate_shot(shot_types.basic.name,nil,nil)
+			end
+			local child_stats = resolve_params(child)
+			local child_cd = child_stats.cd
+
+			local diff = child_cd - 60
+			stats.cd += diff
+
+			return stats
+		end,
 		update = function(s)
-			prev_yvel = s.yvel
 			basic_update(s)
-			if s.yvel > 0 and prev_yvel <= 0 then
+			if s.yvel > 0 then
 				local angle = atan2(s.xvel,s.yvel)
 				local speed = sqrt(s.xvel*s.xvel + s.yvel*s.yvel)
 
+				local child_node = s.node.child
+				if child_node == nil then
+					child_node = generate_shot(shot_types.basic.name,nil,nil)
+				end
+
+				local child_stats = resolve_params(child_node)
+				child_stats.dmg *= 0.5
+
 				for i=1,s.stats.count do
 					local spread = -s.stats.spread * 0.5 + (i - 1) * (s.stats.spread / (s.stats.count - 1))
-					if not s.children == nil and count(s.children) >= i then
-						shoot(s.x, s.y, angle, speed + spread, s.id, s.children[i])
-					else
-						shoot(s.x, s.y, angle, speed + spread, s.id, generate_shot(shot_types.basic.name,nil,nil))
-					end
+					local child_speed = speed + spread
+					local xv = cos(angle) * child_speed
+					local yv = sin(angle) * child_speed
+
+					shoot_w_stats(s.x, s.y, xv, yv, s.id, child_node, child_stats)
 				end
 				return false
 			end
@@ -645,11 +663,11 @@ function pow_spread(base_angle, base_speed, spread, total_count, cur_count)
 	return {x=xv,y=yv}
 end
 
-function generate_shot(name, modifiers, children)
+function generate_shot(name, modifiers, child)
 	return {
 		name = name,
 		modifiers = modifiers,
-		children = children
+		child = child
 	}
 end
 
@@ -698,7 +716,11 @@ end
 function resolve_params(shot_node)
 	local def = shot_types[shot_node.name]
 	local semantics = resolve_semantic_stats(shot_node.modifiers)
-	return def.interpret_semantics(semantics)
+	local stats = def.interpret_semantics(semantics)
+	if def.finalize_stats then
+		stats = def.finalize_stats(shot_node, stats)
+	end
+	return stats
 end
 
 function basic_update(s)
@@ -763,7 +785,6 @@ function update_shots()
 				end
 				return
 			end
-
 		end
 
 		-- particles
@@ -1022,7 +1043,6 @@ function update_particles()
 				local n_x, n_y=get_q_normal(hit_x,hit_y)
 				inf.prevx = hit_x + n_x
 				inf.prevy = hit_y + n_y
-				printh("happens i guess")
 			end
 			ent.x=inf.prevx
 			ent.y=inf.prevy
@@ -1572,12 +1592,9 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: shot application (balancing, e.g. splits, cooldown, and so on)
+-- currently working on: split shot balancing (applying modifiers to children, etc)
 
 --performance:
----shots could get selected and
-----applied based on id, the same
-----way that modifiers do
 ---could consider batch removal of
 ---dirt in explosions, e.g.
 ----1. loop over all explosions,
@@ -1585,6 +1602,11 @@ end
 ----2. batch remove all pixels
 
 --bugs:
+--enemy tanks seem to land randomly
+---when getting knocked. this can
+---cause them to gets stuck on
+---empty space, making them
+---impossible to kill
 --tanks can get stuck in ceiling when flying upwards
 --terrain still seems to flip if
 ---multiple shots hit the same area
@@ -1633,7 +1655,6 @@ function draw_ui()
 	while not (shot == nil) do
 		spr(shot.spr, drawx, 0)
 		drawx += 8
-		printh()
 
 		for id,mod in pairs(shot.modifiers) do
 			spr(modifiers[id].spr, drawx, 0)
