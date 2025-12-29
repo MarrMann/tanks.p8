@@ -399,32 +399,29 @@ function draw_circ(o_x, o_y, x, y, fall)
 	clear_line(y3, o_x - y, o_x + y)
 	clear_line(y4, o_x - y, o_x + y)
 
-	if fall then
-		local tmp_fall={}
-		if mapget(o_x+x, y2 - 1) != 0 then
-			add(tmp_fall, {x=o_x+x, y=y2-1})
-		end
-		if mapget(o_x+y, y4 - 1) != 0 then
-			add(tmp_fall, {x=o_x+y, y=y4-1})
-		end
-		if mapget(o_x-x, y2 - 1) != 0 then
-			add(tmp_fall, {x=o_x-x, y=y2-1})
-		end
-		if mapget(o_x-y, y4 - 1) != 0 then
-			add(tmp_fall, {x=o_x-y, y=y4-1})
-		end
-		return tmp_fall
+	local tmp_fall={}
+	if mapget(o_x+x, y2 - 1) != 0 then
+		add(tmp_fall, {x=o_x+x, y=y2-1})
 	end
+	if mapget(o_x+y, y4 - 1) != 0 then
+		add(tmp_fall, {x=o_x+y, y=y4-1})
+	end
+	if mapget(o_x-x, y2 - 1) != 0 then
+		add(tmp_fall, {x=o_x-x, y=y2-1})
+	end
+	if mapget(o_x-y, y4 - 1) != 0 then
+		add(tmp_fall, {x=o_x-y, y=y4-1})
+	end
+	return tmp_fall
 end
 
 function explode_brem(o_x, o_y, r, fall)
 	local x = 0
 	local y = r
 	local d = 3 - 2 * r
-	-- split logic between falling and not falling
 	if fall then
 		-- save possible falling pixels
-		local tmp_fall=draw_circ(o_x, o_y, x, y, fall)
+		local tmp_fall=draw_circ(o_x, o_y, x, y)
 		local to_add = {}
 		while y >= x do
 			if d > 0 then
@@ -435,7 +432,7 @@ function explode_brem(o_x, o_y, r, fall)
 			end
 			
 			x += 1
-			local add_fall=draw_circ(o_x, o_y, x, y, fall)
+			local add_fall=draw_circ(o_x, o_y, x, y)
 			for a in all(add_fall) do
 				add(tmp_fall, a)
 			end
@@ -628,7 +625,10 @@ shot_types = {
 				end
 
 				local child_stats = resolve_params(child_node)
+				local multiplier_stats = apply_multiplier_stats(shot_types.split.stats, s.stats, child_stats)
 				child_stats.dmg *= 0.5
+				child_stats.force *= 0.5
+				child_stats.r *= 0.8
 
 				for i=1,s.stats.count do
 					local spread = -s.stats.spread * 0.5 + (i - 1) * (s.stats.spread / (s.stats.count - 1))
@@ -647,6 +647,12 @@ shot_types = {
 		end
 	}
 }
+
+function apply_multiplier_stats(base_stats, stats, child_stats)
+	child_stats.dmg *= stats.dmg / base_stats.dmg
+	child_stats.r *= stats.r / base_stats.r
+	child_stats.force *= stats.force / base_stats.force
+end
 
 function pow_spread(base_angle, base_speed, spread, total_count, cur_count)
 	local a = base_angle
@@ -817,8 +823,8 @@ function draw_shots()
 		local d = sqrt(dx*dx+dy*dy)
 		dy /= d
 		dx /= d
-		pset(s.x-dx,s.y-dy,8)
-		line(s.x,s.y,s.x+s.xvel,s.y+s.yvel,7)
+		line(s.x,s.y,s.x-s.xvel,s.y-s.yvel,7)
+		pset(s.x+dx,s.y+dy,8)
 	end
 end
 
@@ -878,7 +884,7 @@ exps={}
 function update_explosions()
 	for i=#exps,1,-1 do
 		local exp = exps[i]
-		local eq = exp.cur_r == exp.r
+		local eq = exp.cur_r >= exp.r
 		explode_brem(exp.x, exp.y, exp.cur_r, eq)
 		handle_exp_hits(exp)
 	end
@@ -964,12 +970,12 @@ end
 function draw_explosions()
 	for i=#exps,1,-1 do
 		local exp = exps[i]
+		if exp.cur_r >= exp.r then
+			del(exps, exp)
+		end
 		circfill(exp.x, exp.y, exp.cur_r, 0)
 		circ(exp.x, exp.y, exp.cur_r, 8)
 		exp.cur_r += 1
-		if exp.cur_r > exp.r then
-			del(exps, exp)
-		end
 	end	
 end
 
@@ -1592,7 +1598,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: split shot balancing (applying modifiers to children, etc)
+-- currently working on: pixel shot type
 
 --performance:
 ---could consider batch removal of
