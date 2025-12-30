@@ -27,9 +27,10 @@ function _init()
 		cur_cd=0,
 		jumps = 3,
 		shot = {
-			name = shot_types.sniper.name,
-			spr = shot_types.sniper.spr,
+			name = shot_types.laser.name,
+			spr = shot_types.laser.spr,
 			modifiers = {
+				size = {stacks = 5}
 			},
 			-- child = {
 			-- 	name = shot_types.split.name,
@@ -769,6 +770,82 @@ shot_types = {
 			explode(s,inf)
 		end
 	},
+	grndsplit = {
+		name = "grndsplit",
+		spr = 51,
+		stats = {
+			dmg=10,
+			r=4,
+			init_r=1,
+			force=4,
+			count=3,
+			spread=1.2,
+			pow=1,
+			cd=75
+		},
+		init = function(s) end,
+		interpret_semantics = function(sem)
+			local base = shot_types.grndsplit.stats
+			local stats = copy_table(base)
+			return apply_sem_basic(sem, stats)
+		end,
+		update = function(s)
+			basic_update(s)
+			return true
+		end,
+		on_collision = function(s, inf)
+			explode(s,inf)
+
+			local angle = 0.25 -- straight up
+			local speed = 3.25
+			local child_node = s.node.child
+			if child_node == nil then
+				child_node = generate_shot(shot_types.basic.name,nil,nil)
+			end
+
+			local child_stats = resolve_params(child_node)
+			local multiplier_stats = apply_multiplier_stats(shot_types.split.stats, s.stats, child_stats)
+			child_stats.dmg *= 0.5
+			child_stats.force *= 0.5
+			child_stats.r *= 0.8
+
+			for i=1,s.stats.count do
+				local spread = -s.stats.spread * 0.5 + (i - 1) * (s.stats.spread / (s.stats.count - 1))
+				local xv = cos(angle + spread * 0.03) * speed
+				local yv = sin(angle + spread * 0.03) * speed
+
+				shoot_w_stats(inf.x, inf.y - 1, xv, yv, s.id, child_node, child_stats)
+			end
+		end
+	},
+	laser = {
+		name = "laser",
+		spr = 52,
+		stats = {
+			dmg=40,
+			r=3,
+			init_r=1,
+			force=2,
+			count=1,
+			spread=0,
+			pow=3,
+			cd=45
+		},
+		init = function(s) end,
+		interpret_semantics = function(sem)
+			local base = shot_types.laser.stats
+			local stats = copy_table(base)
+			return apply_sem_basic(sem, stats)
+		end,
+		update = function(s)
+			s.x += s.xvel
+			s.y += s.yvel
+			return true
+		end,
+		on_collision = function(s, inf)
+			explode(s,inf)
+		end
+	},
 }
 
 function apply_multiplier_stats(base_stats, stats, child_stats)
@@ -861,7 +938,11 @@ end
 function explode(s,inf)
 	ex_x=flr(inf.x)
 	ex_y=flr(inf.y)
-	hit_col=mapget(ex_x,ex_y)
+
+	if inf.y < 0 then
+		del(shots,s) return
+	end
+	del(shots, s)
 	add(exps, {
 		x=ex_x,
 		y=ex_y,
@@ -872,6 +953,30 @@ function explode(s,inf)
 		force=s.stats.force,
 		id=s.id
 	})
+
+	-- map/dirt particles
+	hit_col=mapget(ex_x,ex_y)
+	if inf.hitcol !=0 then
+		local n_x,n_y=get_q_normal(ex_x, ex_y)
+		local p_x=ex_x+n_x
+		local p_y=ex_y+n_y
+		local base_angle=atan2(n_x,n_y)
+
+		for k=1,(s.stats.r-1)*1.35 do
+			local ang = base_angle + rnd(0.5)-0.25
+			local vel = rnd(s.stats.r * 0.25)+s.stats.r * 0.15
+			add(map_parts, {
+				x=flr(p_x),
+				y=flr(p_y),
+				xvel=cos(ang)*vel,
+				yvel=sin(ang)*vel,
+				xprev=flr(inf.prevx),
+				yprev=flr(inf.prevy),
+				life=120,
+				col=inf.hitcol
+			})
+		end
+	end
 end
 
 function update_shots()
@@ -889,29 +994,6 @@ function update_shots()
 
 			local keep_alive = shot_types[s.node.name].on_collision(s, inf)
 			if not keep_alive then
-				del(shots, s)
-				-- map/dirt particles
-				if inf.hitcol !=0 then
-					local n_x,n_y=get_q_normal(ex_x, ex_y)
-					local p_x=ex_x+n_x
-					local p_y=ex_y+n_y
-					local base_angle=atan2(n_x,n_y)
-
-					for k=1,(s.stats.r-1)*1.35 do
-						local ang = base_angle + rnd(0.5)-0.25
-						local vel = rnd(s.stats.r * 0.25)+s.stats.r * 0.15
-						add(map_parts, {
-							x=flr(p_x),
-							y=flr(p_y),
-							xvel=cos(ang)*vel,
-							yvel=sin(ang)*vel,
-							xprev=flr(inf.prevx),
-							yprev=flr(inf.prevy),
-							life=120,
-							col=inf.hitcol
-						})
-					end
-				end
 				return
 			end
 		end
@@ -1725,14 +1807,11 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: sniper shot
+-- currently working on: pickups
 
 -- shots:
 -- heavy shot
--- sniper shot
--- ground splitter
 -- fireworks
--- laser
 
 --performance:
 ---could consider batch removal of
@@ -1848,14 +1927,14 @@ __gfx__
 100000011000000110090a01307007033008000330870803300550033555d6630000000000000000000000000000000000000000000000000000000000000000
 1000000110000001100a000130007773308088033008800335555553355fd5530000000000000000000000000000000000000000000000000000000000000000
 11111111111111111111111133333333333333333333333333333333333333330000000000000000000000000000000000000000000000000000000000000000
-11111111111111111111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000008888888800000000
-15000051100000011000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000008777777800000000
-10500501190000a11000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000008788887800000000
-1008800110900901199999a100000000000000000000000000000000000000000000000000000000000000000000000000000000000880008787787800000000
-10088001100909011909090100000000000000000000000000000000000000000000000000000000000000000000000000000000088888808787787800000000
-105005011009900119090a0100000000000000000000000000000000000000000000000000000000000000000000000000000000088888808788887800000000
-15000051100090011a0a000100000000000000000000000000000000000000000000000000000000000000000000000000000000151515158777777800000000
-11111111111111111111111100000000000000000000000000000000000000000000000000000000000000000000000000000000515151518888888800000000
+11111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000000000008888888800000000
+15000051100000011000000110000001100000010000000000000000000000000000000000000000000000000000000000000000000000008777777800000000
+10500501190000a11000000110000001100000010000000000000000000000000000000000000000000000000000000000000000000000008788887800000000
+1008800110900901199999a11a0a0a01100009010000000000000000000000000000000000000000000000000000000000000000000880008787787800000000
+10088001100909011909090110999001188888a10000000000000000000000000000000000000000000000000000000000000000088888808787787800000000
+105005011009900119090a0110090001100009010000000000000000000000000000000000000000000000000000000000000000088888808788887800000000
+15000051100090011a0a000110090001100000010000000000000000000000000000000000000000000000000000000000000000151515158777777800000000
+11111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000515151518888888800000000
 __map__
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f000000000000000000003f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 020202020202020202020202023f3f3f3f000000000000000000003e0000000000000000000000000000003e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
