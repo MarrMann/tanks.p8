@@ -182,6 +182,14 @@ function handle_input()
 			load_room(room.x, room.y)
 		end
 	end
+
+	-- check collision with pickups
+	for pick in all(pickups) do
+		if tile_aabb(p.x-4, p.y-6, pick.x, pick.y) then
+			apply_pickup(pick)
+			remove_pickup(pick)
+		end
+	end
 end
 
 function get_ground(x, y)
@@ -1529,6 +1537,13 @@ function checkcolhigh(x0, y0, x1, y1)
 	return {didhit=false}
 end
 
+function tile_aabb(x1, y1, x2, y2)
+	return x1 < x2 + 8 and
+		x2 < x1 + 8 and
+		y1 < y2 + 8 and
+		y2 < y1 + 8
+end
+
 -- get the terrain normal at (x, y)
 function get_normal(x, y)
  local dx = 0
@@ -1685,6 +1700,36 @@ function spawn_pickup(x,y)
 		spr=spr,
 		name=name,
 	})
+end
+
+function apply_pickup(pickup)
+	-- find leaf of shot tree
+	local shot = p.shot
+	while	not (shot.child == nil) do
+		shot = shot.child
+	end
+
+	-- pick up the pickup
+	if pickup.type	== "modifier" then
+		local mod = modifiers[pickup.name]
+		local smod = shot.modifiers[pickup.name]
+		if smod	then
+			smod.stacks += 1
+		else
+			shot.modifiers[pickup.name] = { stacks = 1 }
+		end
+	else
+		local new_shot = {
+			name = pickup.name,
+			spr = pickup.spr,
+			modifiers = {}
+		}
+		shot.child = new_shot
+	end
+end
+
+function remove_pickup(pickup)
+	del(pickups, pickup)
 end
 
 function add_modifier(mods, id, stacks)
@@ -1856,11 +1901,10 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: aabb collision
----
----need aabb collision check
----
----for now, pick them up directly
+-- currently working on: pick up shots with keys
+-- s: pickups
+-- f: swap,
+-- e: drop
 
 -- shots:
 -- heavy shot
