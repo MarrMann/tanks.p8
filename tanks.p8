@@ -8,6 +8,14 @@ function _init()
 	gameover = false
 	wait_t = 0
 	t = 0
+	modifier_names = {}
+	shot_names = {}
+	for k,v in pairs(modifiers) do
+		add(modifier_names, k)
+	end
+	for k,v	in pairs(shot_types) do
+		add(shot_names, k)
+	end
 	p={
 		id = get_entity_id(),
 		x = 64,
@@ -27,18 +35,10 @@ function _init()
 		cur_cd=0,
 		jumps = 3,
 		shot = {
-			name = shot_types.laser.name,
-			spr = shot_types.laser.spr,
+			name = shot_types.basic.name,
+			spr = shot_types.basic.spr,
 			modifiers = {
-				size = {stacks = 5}
 			},
-			-- child = {
-			-- 	name = shot_types.split.name,
-			-- 	spr = shot_types.split.spr,
-			-- 	modifiers = {
-			-- 	},
-			-- 	child = nil
-			-- }
 		}
 	}
 	load_room(0,0)
@@ -276,6 +276,9 @@ function init_world()
 	map(room.x*16, room.y*16)
 	for de in all(dumb_enemies) do
 		remove_tile(de.x-4,de.y-6)
+	end
+	for p in all(pickups) do
+		remove_tile(p.x,p.y)
 	end
 	memcpy(0x8000, 0x6000, 0x2000)
 end
@@ -1579,17 +1582,20 @@ room_state={
 }
 targets = {}
 dumb_enemies = {}
+pickups = {}
 hit_texts = {}
 knocked_entities={}
 
 empty_t = 63
 target_t = 62
 enemy_t = 61
+pickup_t = 32
 
 function load_room(x,y)
  -- clear
 	del_table_contents(targets)
 	del_table_contents(dumb_enemies)
+	del_table_contents(pickups)
 	del_table_contents(shots)
 	del_table_contents(map_parts)
 	del_table_contents(parts)
@@ -1644,6 +1650,8 @@ function load_room(x,y)
 						child = nil
 					}
 		 	})
+			elseif tile==pickup_t then
+				spawn_pickup(tx*8,ty*8)
 			end
 		end
 	end
@@ -1651,6 +1659,32 @@ function load_room(x,y)
 	init_world()
 	check_room_state() --could load room with no enemies
 	fix_player_spawn()
+end
+
+function spawn_pickup(x,y)
+	local is_modifier	= (rnd(1) < 0.66)
+	local type = is_modifier and "modifier" or "shot"
+	local spr, name
+	if is_modifier then
+		while spr == nil do
+			local m = modifiers[rnd(modifier_names)]
+			spr = m.spr
+			name = m.name
+		end
+	else
+		while spr == nil do
+			local s = shot_types[rnd(shot_names)]
+			spr = s.spr
+			name = s.name
+		end
+	end
+
+	add(pickups, {
+		x=x,
+		y=y,
+		spr=spr,
+		name=name,
+	})
 end
 
 function add_modifier(mods, id, stacks)
@@ -1698,6 +1732,21 @@ function draw_types()
 		if ht.life < 0 then
 			del(hit_texts, ht)
 		end
+	end
+
+	for p in all(pickups) do
+		local draw_y = sin(time()*0.4)*3
+		spr(p.spr, p.x, draw_y + p.y)
+		add(parts, {
+			x=p.x + 4 + rnd(1.5) - 0.75,
+			y=p.y + 4 + draw_y + rnd(1.5) - 0.75,
+			xvel=rnd(1.5) - 0.75,
+			yvel=rnd(1.5) - 0.75,
+			xprev=p.x,
+			yprev=p.y + draw_y,
+			life=10,
+			col=12
+		})
 	end
 end
 
@@ -1807,7 +1856,11 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: pickups
+-- currently working on: aabb collision
+---
+---need aabb collision check
+---
+---for now, pick them up directly
 
 -- shots:
 -- heavy shot
@@ -1846,6 +1899,10 @@ end
 --ui showing what pickups you
 ---have. keep them in order of
 ---pickup time for now
+--save pickups and cleared rooms
+---so we don't have to clear
+---rooms again, and can't pickup
+---the same powerup multiple times
 
 --test:
 ---test all modifiers
@@ -1945,7 +2002,7 @@ __map__
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f000000000000000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f00000000000000000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f00000000000000000000000300000000000000000000000000000000000000000000000000000000090800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3f3f3f3f3f3f3f3f3f3f3f3f3d3f3f3f00000000000000000000003f00000000000000000000000000000000000000000000000000000009131308000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3f3f3f3f3f3f3f3f3f203f3f3d3f3f3f00000000000000000000003f00000000000000000000000000000000000000000000000000000009131308000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0202020202020202020202020202020213131308000000000000003f0000000000003e0000000000000000131313000000000000003f0913131313080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 13131313131313131313131313131313131313131313131313131313131313131313130000000000000000133e131313130000003f0913131313131308003d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
