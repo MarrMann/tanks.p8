@@ -503,7 +503,7 @@ modifiers = {
 		end
 	},
 	dmg_flat = {
-		name = "dmg",
+		name = "dmg_flat",
 		spr = 36,
 		apply = function(stats, count)
 			stats.dmg += 5 * count
