@@ -54,6 +54,7 @@ function _update()
 	update_world()
 	update_player()
 	update_enemies()
+	update_pickups()
 	update_shots()
 	update_particles()
 	update_explosions()
@@ -183,11 +184,24 @@ function handle_input()
 		end
 	end
 
-	-- check collision with pickups
+	-- check collision and interactions with pickups
+	if btnp(🅾️,1) then
+		drop_pickup()
+	end
+
+	p.is_picking = false
 	for pick in all(pickups) do
 		if tile_aabb(p.x-4, p.y-6, pick.x, pick.y) then
-			apply_pickup(pick)
-			remove_pickup(pick)
+			p.is_picking = true
+			if btnp(⬅️,1) then
+				apply_pickup(pick)
+				remove_pickup(pick)
+			elseif btnp(⬆️,1) then
+				drop_pickup()
+				apply_pickup(pick)
+				remove_pickup(pick)
+				break
+			end
 		end
 	end
 end
@@ -1697,26 +1711,71 @@ function spawn_pickup(x,y)
 	add(pickups, {
 		x=x,
 		y=y,
+		type=type,
 		spr=spr,
 		name=name,
 	})
 end
 
+function drop_pickup()
+	local parent = nil
+	local leaf = p.shot
+
+	while leaf.child != nil do
+		parent = leaf
+		leaf = leaf.child
+	end
+
+	local mod_name, mod_data = next(leaf.modifiers)
+
+	if mod_name then
+		-- Spawn the modifier pickup
+		add(pickups, {
+			x = p.x - 4,
+			y = p.y - 6,
+			spr = modifiers[mod_name].spr,
+			type = "modifier",
+			name = mod_name
+		})
+
+		-- Remove from player inventory
+		if mod_data.stacks > 1 then
+			mod_data.stacks -= 1
+		else
+			leaf.modifiers[mod_name] = nil
+		end
+		
+		return
+	end
+
+	if parent then
+		add(pickups, {
+			x = p.x - 4,
+			y = p.y - 6,
+			spr = shot_types[leaf.name].spr,
+			type = "shot",
+			name = leaf.name
+		})
+
+		-- Cut the link
+		parent.child = nil
+	end
+end
+
 function apply_pickup(pickup)
 	-- find leaf of shot tree
-	local shot = p.shot
-	while	not (shot.child == nil) do
-		shot = shot.child
+	local leaf = p.shot
+	while leaf.child != nil do
+		leaf = leaf.child
 	end
 
 	-- pick up the pickup
 	if pickup.type	== "modifier" then
-		local mod = modifiers[pickup.name]
-		local smod = shot.modifiers[pickup.name]
-		if smod	then
-			smod.stacks += 1
+		local existing = leaf.modifiers[pickup.name]
+		if existing	then
+			existing.stacks += 1
 		else
-			shot.modifiers[pickup.name] = { stacks = 1 }
+			leaf.modifiers[pickup.name] = { stacks = 1 }
 		end
 	else
 		local new_shot = {
@@ -1724,7 +1783,7 @@ function apply_pickup(pickup)
 			spr = pickup.spr,
 			modifiers = {}
 		}
-		shot.child = new_shot
+		leaf.child = new_shot
 	end
 end
 
@@ -1738,6 +1797,13 @@ function add_modifier(mods, id, stacks)
 		m.stacks += stacks
 	else
 		mods[id] = { stacks = stacks }
+	end
+end
+
+function update_pickups()
+	for	p in all(pickups) do
+		local grnd = get_ground(flr(p.x+4),flr(p.y+7))
+		p.y = grnd-7
 	end
 end
 
@@ -1901,10 +1967,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: pick up shots with keys
--- s: pickups
--- f: swap,
--- e: drop
+-- currently working on: levels/maps
 
 -- shots:
 -- heavy shot
