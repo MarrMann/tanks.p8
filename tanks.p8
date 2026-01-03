@@ -35,16 +35,10 @@ function _init()
 		cur_cd=0,
 		jumps = 3,
 		shot = {
-			name = shot_types.split.name,
-			spr = shot_types.split.spr,
+			name = shot_types.basic.name,
+			spr = shot_types.basic.spr,
 			modifiers = {
 			},
-			child = {
-				name = shot_types.bounce.name,
-				spr = shot_types.bounce.spr,
-				modifiers = {
-				},
-			}
 		}
 	}
 	load_room(0,0)
@@ -2074,7 +2068,7 @@ function draw_ui()
 
 	if gameover then
 		print("game over", 42, 60, 8)
-		print("press ❎ to restart", 24, 70, 8)
+		print("press 🅾️ to restart", 24, 70, 8)
 		return
 	end
 	draw_bar(p.cur_cd,p.cd,p.x,p.y-6,10)
