@@ -35,10 +35,16 @@ function _init()
 		cur_cd=0,
 		jumps = 3,
 		shot = {
-			name = shot_types.basic.name,
-			spr = shot_types.basic.spr,
+			name = shot_types.split.name,
+			spr = shot_types.split.spr,
 			modifiers = {
 			},
+			child = {
+				name = shot_types.bounce.name,
+				spr = shot_types.bounce.spr,
+				modifiers = {
+				},
+			}
 		}
 	}
 	load_room(0,0)
@@ -511,7 +517,7 @@ modifiers = {
 		name = "size",
 		spr = 37,
 		apply = function(stats, count)
-			stats.r += 1 * count
+			stats.r += 3 * count
 		end
 	},
 	heavy = {
@@ -564,33 +570,7 @@ shot_types = {
 			cd=60
 		},
 		init = function(s)
-			if s.stats == nil then
-				return
-			end
-
-			local base_angle = atan2(s.xvel, s.yvel)
-			local speed = sqrt(s.xvel*s.xvel + s.yvel*s.yvel)
-
-			local count = max(1, s.stats.count)
-			local spread = s.stats.spread
-
-			for i=1,count do
-				local vel = pow_spread(base_angle,speed,spread,count,i)
-				local xv = vel.x
-				local yv = vel.y
-				if i == 1 then
-					s.xvel = xv
-					s.yvel = yv
-				else
-					local stat_copy = copy_table(s.stats)
-					-- avoid changing new shots
-					stat_copy.count = 0
-					stat_copy.spread = 0
-					stat_copy.pow = 1
-
-					shoot_w_stats(s.x, s.y, xv, yv, s.id, s.node, stat_copy)
-				end
-			end
+			single_shot_init(s)
 		end,
 		interpret_semantics = function(sem)
 			local base = shot_types.basic.stats
@@ -649,13 +629,14 @@ shot_types = {
 					child_node = generate_shot(shot_types.basic.name,nil,nil)
 				end
 
-				local child_stats = resolve_params(child_node)
-				local multiplier_stats = apply_multiplier_stats(shot_types.split.stats, s.stats, child_stats)
-				child_stats.dmg *= 0.5
-				child_stats.force *= 0.5
-				child_stats.r *= 0.8
+				local child_base_stats = resolve_params(child_node)
+				local multiplier_stats = apply_multiplier_stats(shot_types.split.stats, s.stats, child_base_stats)
+				child_base_stats.dmg *= 0.5
+				child_base_stats.force *= 0.5
+				child_base_stats.r *= 0.8
 
 				for i=1,s.stats.count do
+					local child_stats	= copy_table(child_base_stats)
 					local spread = -s.stats.spread * 0.5 + (i - 1) * (s.stats.spread / (s.stats.count - 1))
 					local child_speed = speed + spread
 					local xv = cos(angle) * child_speed
@@ -779,7 +760,9 @@ shot_types = {
 			pow=1,
 			cd=80
 		},
-		init = function(s) end,
+		init = function(s)
+			single_shot_init(s)
+		end,
 		interpret_semantics = function(sem)
 			local base = shot_types.sniper.stats
 			local stats = copy_table(base)
@@ -854,7 +837,9 @@ shot_types = {
 			pow=3,
 			cd=45
 		},
-		init = function(s) end,
+		init = function(s)
+			single_shot_init(s)
+		end,
 		interpret_semantics = function(sem)
 			local base = shot_types.laser.stats
 			local stats = copy_table(base)
@@ -870,6 +855,36 @@ shot_types = {
 		end
 	},
 }
+
+function single_shot_init(shot)
+	if shot.stats == nil then
+		return
+	end
+
+	local base_angle = atan2(shot.xvel, shot.yvel)
+	local speed = sqrt(shot.xvel*shot.xvel + shot.yvel*shot.yvel)
+
+	local count = max(1, shot.stats.count)
+	local spread = shot.stats.spread
+
+	for i=1,count do
+		local vel = pow_spread(base_angle,speed,spread,count,i)
+		local xv = vel.x
+		local yv = vel.y
+		if i == 1 then
+			shot.xvel = xv
+			shot.yvel = yv
+		else
+			local stat_copy = copy_table(shot.stats)
+			-- avoid changing new shots
+			stat_copy.count = 0
+			stat_copy.spread = 0
+			stat_copy.pow = 1
+
+			shoot_w_stats(shot.x, shot.y, xv, yv, shot.id, shot.node, stat_copy)
+		end
+	end
+end
 
 function apply_multiplier_stats(base_stats, stats, child_stats)
 	child_stats.dmg *= stats.dmg / base_stats.dmg
@@ -2020,6 +2035,7 @@ end
 ---cause them to gets stuck on
 ---empty space, making them
 ---impossible to kill
+--enemy tanks can't aim backwards
 --tanks can get stuck in ceiling when flying upwards
 --terrain still seems to flip if
 ---multiple shots hit the same area
