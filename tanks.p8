@@ -189,19 +189,19 @@ function handle_input()
 		drop_pickup()
 	end
 
-	p.is_picking = false
 	for pick in all(pickups) do
 		if tile_aabb(p.x-4, p.y-6, pick.x, pick.y) then
-			p.is_picking = true
+			p.pickup_hover = pick
 			if btnp(⬅️,1) then
 				apply_pickup(pick)
 				remove_pickup(pick)
 			elseif btnp(⬆️,1) then
 				swap_pickup(pick)
-				break
 			end
+			return
 		end
 	end
+	p.pickup_hover = nil
 end
 
 function get_ground(x, y)
@@ -2001,7 +2001,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: pickup text
+-- currently working on: split shots into multiple other single shots
 
 -- shots:
 -- heavy shot
@@ -2068,7 +2068,6 @@ function draw_ui()
 	-- pickups
 	local shot = p.shot
 	local drawx = 0
-
 	while not (shot == nil) do
 		spr(shot.spr, drawx, 0)
 		drawx += 8
@@ -2082,6 +2081,15 @@ function draw_ui()
 		end
 
 		shot = shot.child
+	end
+
+	if not(p.pickup_hover == nil) then
+		if p.pickup_hover.type == "modifier" then
+			print("press s to pick up "..p.pickup_hover.name, 8, 32, 7)
+		else
+			print("press s to pick up "..p.pickup_hover.name, 8, 32, 7)
+			print("press e to swap", 16, 40, 7)
+		end
 	end
 end
 
