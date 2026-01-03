@@ -1704,7 +1704,7 @@ function load_room(x,y)
 end
 
 function spawn_pickup(x,y)
-	local is_modifier	= (rnd(1) < 0.66)
+	local is_modifier	= (rnd(1) < 0.6)
 	local type = is_modifier and "modifier" or "shot"
 	local spr, name
 	if is_modifier then
@@ -1714,7 +1714,7 @@ function spawn_pickup(x,y)
 			name = m.name
 		end
 	else
-		while spr == nil do
+		while spr == nil or name == "basic" do
 			local s = shot_types[rnd(shot_names)]
 			spr = s.spr
 			name = s.name
@@ -2016,7 +2016,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: split shots into multiple other single shots
+-- currently working on: enemy tanks noclip
 
 -- shots:
 -- heavy shot
