@@ -134,7 +134,7 @@ function handle_input()
 
 	-- jumping
 	if btnp(➡️,1) then
-			if (p.jumps > 0 and p.is_grounded) then
+			if (p.jumps > 0 and not p.is_knocked) then
 			local vel = 4
 			p.xvel = vel * cos(p.t_angle)
 			p.yvel = vel	* sin(p.t_angle)
@@ -197,9 +197,7 @@ function handle_input()
 				apply_pickup(pick)
 				remove_pickup(pick)
 			elseif btnp(⬆️,1) then
-				drop_pickup()
-				apply_pickup(pick)
-				remove_pickup(pick)
+				swap_pickup(pick)
 				break
 			end
 		end
@@ -1787,6 +1785,42 @@ function apply_pickup(pickup)
 	end
 end
 
+function swap_pickup(pickup)
+	if pickup.type == "modifier" then
+		return -- can only swap shots
+	end
+
+	-- find leaf of shot tree
+	local parent = nil
+	local leaf = p.shot
+	while leaf.child != nil do
+		parent = leaf
+		leaf = leaf.child
+	end
+
+	-- drop current pickup
+	add(pickups, {
+		x = p.x - 4,
+		y = p.y - 6,
+		spr = shot_types[leaf.name].spr,
+		type = "shot",
+		name = leaf.name
+	})
+
+	local new_shot = {
+		name = pickup.name,
+		spr = pickup.spr,
+		modifiers = leaf.modifiers
+	}
+	remove_pickup(pickup)
+	if parent	then
+		parent.child = new_shot
+	else
+		p.shot = new_shot
+	end
+
+end
+
 function remove_pickup(pickup)
 	del(pickups, pickup)
 end
@@ -1967,10 +2001,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: pick up shots with keys
--- s: pickup
--- f: swap,
--- e: drop
+-- currently working on: pickup text
 
 -- shots:
 -- heavy shot
