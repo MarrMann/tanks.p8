@@ -249,11 +249,7 @@ function draw_player()
 	
 	-- player sprite
 	if p.move then p.spr = (t%4)/2 end
-	p.x -= 4
-	p.y -= 6
-	spr(p.spr, p.x, p.y)
-	p.x += 4
-	p.y += 6
+	spr(p.spr, p.x-4, p.y-6)
 
 	-- turret
 	local tur_x = cos(p.t_angle)*4
@@ -968,8 +964,8 @@ function basic_update(s)
 end
 
 function explode(s,inf)
-	ex_x=flr(inf.x)
-	ex_y=flr(inf.y)
+	local ex_x=flr(inf.x)
+	local ex_y=flr(inf.y)
 
 	if inf.y < 0 then
 		del(shots,s) return
@@ -1102,6 +1098,25 @@ function shoot_from_turret(x, y, angle, vel, id, shot_node)
 	sfx(1)
 	return shoot(ox,oy,angle,vel,id,shot_node)
 end
+
+function shoot_from_turret_raw(x, y, xv, yv, id, shot_node)
+	local stats = resolve_params(shot_node)
+	local s = {
+		x = x,
+		y = y,
+		xvel = xv*stats.pow,
+		yvel = yv*stats.pow,
+		id = id,
+		frame = 0,
+		stats = stats,
+		node = shot_node,
+	}
+	shot_types[shot_node.name].init(s)
+	add(shots, s)
+	sfx(1)
+	return stats.cd
+end
+
 -->8
 -- explosions
 --exp = {
@@ -1165,13 +1180,12 @@ function handle_exp_hits(exp)
 				if e.health <= 0 then
 					del(dumb_enemies,e)
 					check_room_state()
-				else
-					e.is_knocked=true
-					local f_x, f_y=get_knockback(e,exp)
-					e.xvel=f_x
-					e.yvel=f_y
-					add(knocked_entities,e)
 				end
+				e.is_knocked=true
+				local f_x, f_y=get_knockback(e,exp)
+				e.xvel=f_x
+				e.yvel=f_y
+				add(knocked_entities,e)
 			end
 		end
 	end
@@ -1290,7 +1304,7 @@ function update_particles()
 			ent.xvel=0
 			ent.yvel=0
 			ent.is_knocked=false
-			ent.is_grounded=mapget(ent.x,ent.y+1) == 0
+			ent.is_grounded=mapget(flr(ent.x),flr(ent.y+1)) == 0
 			del(knocked_entities, ent)
 		else
 			ent.x += ent.xvel
@@ -1666,8 +1680,8 @@ function load_room(x,y)
 			elseif tile==enemy_t then
 		 	add(dumb_enemies, {
 					id=get_entity_id(),
-		 		x=tx*8+4, // offset sprite
-		 		y=ty*8+6, // offset sprite
+		 		x=tx*8+4, -- offset sprite
+		 		y=ty*8+6, -- offset sprite
 					xvel=0,
 					yvel=0,
 		 		t_angle=0.4,
@@ -1970,27 +1984,45 @@ end
 -- enemies
 function update_enemies()
 	for de in all(dumb_enemies) do
+		local barrel_x = de.x + cos(de.t_angle) * 4
+		local barrel_y = (de.y - 3) + sin(de.t_angle) * 4
+		local a,p,xv,yv = get_ballistics(barrel_x, barrel_y, p.x+4, p.y+6, 1.5)
+		
+		de.target_angle = a
+		de.pow = p 
+
+		local a_diff = de.target_angle - de.t_angle
+		if a_diff > 0.5 then  a_diff -= 1 end
+		if a_diff < -0.5 then a_diff += 1 end
+		de.t_angle += a_diff * 0.1
+
 		if de.cur_cd<=0 then
-			de.pow=abs(p.x-de.x)*0.65*0.01
-			local cd = shoot_from_turret(de.x,de.y,de.t_angle,de.pow,de.id,de.shot)
+			local a_spread = rnd(0.05) - 0.025
+			local p_spread = 0.95 + rnd(0.1)
+			xv = (xv * cos(a_spread) - yv * sin(a_spread)) * p_spread
+			yv = (xv * sin(a_spread) + yv * cos(a_spread)) * p_spread
+
+			local cd = shoot_from_turret_raw(barrel_x,barrel_y,xv,yv,de.id,de.shot)
 			de.cur_cd = cd
 			de.cd = cd
 		end
 		de.cur_cd-=1
 		
-		if mapget(de.x,de.y+1)==0 then
+		if mapget(flr(de.x),flr(de.y+1))==0 then
 			de.y+=1
 		end
-
-		-- mirror based on player pos
-		if p.x-de.x<0 and de.target_angle>0.5 then
-			de.target_angle-=(de.target_angle-0.5)*2
-		elseif p.x-de.x>0 and de.target_angle<0.5 then
-			de.target_angle+=(0.5-de.target_angle)*2
-		end
-
-		de.t_angle=de.target_angle+sin(time()*0.2312)*0.08
 	end
+end
+
+function get_ballistics(ox, oy, tx, ty, speed_coef)
+	local dx = tx - ox
+	local dy = ty - oy
+	local t = ceil(max(abs(dx) / speed_coef, 15))
+	local vx = dx/t
+	local vy = (dy - (grav * t * (t - 1) / 2)) / t
+	local angle = atan2(vx, vy)
+	local power = sqrt(vx * vx + vy * vy)
+	return angle,power,vx,vy
 end
 
 function draw_enemies()
@@ -2010,7 +2042,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: enemy tanks noclip
+-- currently working on: save cleared rooms
 
 -- shots:
 -- heavy shot
@@ -2023,40 +2055,15 @@ end
 ----get pixels for removal back
 ----2. batch remove all pixels
 
---bugs:
---enemy tanks seem to land randomly
----when getting knocked. this can
----cause them to gets stuck on
----empty space, making them
----impossible to kill
---enemy tanks can't aim backwards
 --tanks can get stuck in ceiling when flying upwards
 --terrain still seems to flip if
 ---multiple shots hit the same area
 
---improvements:
---how do we ensure the correct
----number of children when generating
----the shot? right now nothing stops
----us from supplying more children
----than a shot can take...
---implement more shot types and
----modifiers
-
 --pickups:
---add shots and modifiers in
----levels so you can pick them up
---add picking up method
---ui showing what pickups you
----have. keep them in order of
----pickup time for now
 --save pickups and cleared rooms
 ---so we don't have to clear
 ---rooms again, and can't pickup
 ---the same powerup multiple times
-
---test:
----test all modifiers
 
 -->8
 --ui
