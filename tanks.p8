@@ -10,6 +10,7 @@ function _init()
 	t = 0
 	modifier_names = {}
 	shot_names = {}
+	cleared_rooms = {}
 	for k,v in pairs(modifiers) do
 		add(modifier_names, k)
 	end
@@ -295,6 +296,11 @@ function init_world()
 	end
 	for p in all(pickups) do
 		remove_tile(p.x,p.y)
+	end
+	if is_room_cleared(room.x,room.y) then
+		del_table_contents(targets)
+		del_table_contents(dumb_enemies)
+		del_table_contents(pickups)
 	end
 	memcpy(0x8000, 0x6000, 0x2000)
 end
@@ -1711,6 +1717,15 @@ function load_room(x,y)
 	fix_player_spawn()
 end
 
+function is_room_cleared(x, y)
+	for r in all(cleared_rooms) do
+		if r.x == x and r.y == y then
+			return true
+		end
+	end
+	return false
+end
+
 function spawn_pickup(x,y)
 	local is_modifier	= (rnd(1) < 0.6)
 	local type = is_modifier and "modifier" or "shot"
@@ -1924,6 +1939,9 @@ function check_room_state()
 			p.health += p.health_regen
 			p.health = min(p.health, p.max_health)
 		end
+		if not is_room_cleared(room.x,room.y) then
+			add(cleared_rooms, {x=room.x,y=room.y})
+		end
 		room_state.bounds = false
 		room_state.completed = true
 	else
@@ -2042,7 +2060,7 @@ function draw_enemies()
 end
 -->8
 -- todo
--- currently working on: save cleared rooms
+-- currently working on: check out yt video on falling sands
 
 -- shots:
 -- heavy shot
